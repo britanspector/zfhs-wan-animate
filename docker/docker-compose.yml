@@ -1,0 +1,34 @@
+services:
+  wan-animate:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: ${REGISTRY:-}zfhs-wan-animate:${TAG:-latest}
+    container_name: wan-animate
+    ports:
+      - "${WAN_ANIMATE_PORT:-6020}:6020"
+    environment:
+      COMFYUI_URL: http://127.0.0.1:6006
+      COMFYUI_ROOT: /app/ComfyUI
+      WAN_ANIMATE_API_HOST: 0.0.0.0
+      WAN_ANIMATE_API_PORT: 6020
+      WAN_ANIMATE_DATA_DIR: /app/data
+    volumes:
+      - ./volumes/models:/app/ComfyUI/models:ro
+      - ./volumes/input:/app/ComfyUI/input
+      - ./volumes/output:/app/ComfyUI/output
+      - ./volumes/data:/app/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "/app/docker/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+    restart: unless-stopped

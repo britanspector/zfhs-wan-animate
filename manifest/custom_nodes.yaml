@@ -1,0 +1,27 @@
+# P07 依赖的 ComfyUI custom_nodes（目录名）
+# 路径相对于 {COMFYUI_ROOT}/custom_nodes/
+
+required:
+  - name: ComfyUI-WanVideoWrapper
+    provides: WanVideoModelLoader, WanVideoSampler, WanVideoDecode, WanVideoVAELoader, WanVideoTextEncode, WanVideoClipVisionEncode, WanVideoAnimateEmbeds, WanVideoBlockSwap, WanVideoLoraSelectMulti, WanVideoContextOptions
+
+  - name: ComfyUI-WanAnimatePreprocess
+    provides: PoseAndFaceDetection, OnnxDetectionModelLoader, DrawViTPose
+
+  - name: ComfyUI-KJNodes
+    provides: ImageResizeKJv2, INTConstant
+
+  - name: ComfyUI-VideoHelperSuite
+    provides: VHS_LoadVideo, VHS_VideoCombine, VHS_VideoInfo
+
+  - name: ComfyUI-Easy-Use
+    provides: easy mathInt
+
+  - name: reservedvram
+    provides: ReservedVRAMSetter
+
+  - name: comfyui_memory_cleanup
+    provides: VRAMCleanup
+
+  - name: ComfyUI_essentials
+    provides: BatchCount+

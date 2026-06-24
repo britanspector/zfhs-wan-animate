@@ -1,0 +1,117 @@
+comfy_url: "http://127.0.0.1:6006"
+comfy_root: "/app/ComfyUI"
+workflow_path: "workflows/p07_animate_v4.json"
+output_node_id: "867"
+fps: 30
+default_workflow_variant: "v4"
+workflows:
+  v4:
+    id: "P07-animate-v4"
+    label: "标准动作迁移"
+    description: "更贴近参考视频整体观感与表情"
+    file: "workflows/p07_animate_v4.json"
+  v5:
+    id: "P07-animate-v5"
+    label: "保身份动作迁移"
+    description: "尽量保留参考图人物外形，主要迁移动作姿态"
+    file: "workflows/p07_animate_v5.json"
+tunables:
+  - key: "62:pose_strength"
+    label: "姿态强度"
+    type: "float"
+    min: 0
+    max: 1
+    step: 0.05
+    group: identity
+    hint: "越高越贴近参考视频的动作幅度；过高可能导致身形跟着视频变"
+  - key: "62:face_strength"
+    label: "表情/脸型跟随"
+    type: "float"
+    min: 0
+    max: 1
+    step: 0.05
+    group: identity
+    hint: "越低越保留参考图原有脸型与表情；越高越像参考视频里的脸"
+  - key: "996:draw_head"
+    label: "姿态骨架绘制头部"
+    type: "bool"
+    group: identity
+    hint: "关闭可减少头部被参考视频脸型带偏"
+  - key: "64:crop_position"
+    label: "参考图裁剪"
+    type: "select"
+    group: identity
+    options: ["top", "center"]
+    hint: "参考图与视频画幅对齐时的裁剪锚点"
+  - key: "27:steps"
+    label: "采样步数"
+    type: int
+    min: 1
+    max: 8
+    step: 1
+    group: sampler
+    hint: "与 Lightning 4步 LoRA 配合时建议保持 4；增大更慢"
+  - key: "27:denoise_strength"
+    label: "去噪强度"
+    type: float
+    min: 0
+    max: 1
+    step: 0.05
+    group: sampler
+    hint: "越低越保留原图结构；越高改动幅度越大"
+  - key: "171:strength_0"
+    label: "重光照 LoRA"
+    type: lora_switch
+    group: lora
+    hint: "WanAnimate 重光照；影响肤色与光影是否向参考视频靠拢"
+  - key: "171:strength_1"
+    label: "Lightning 4步 LoRA"
+    type: lora_switch
+    group: lora
+    hint: "加速采样；关闭后需手动提高 steps"
+  - key: "171:strength_2"
+    label: "FastWan T2V LoRA"
+    type: lora_switch
+    group: lora
+    hint: "风格化增强；关闭可减少身份漂移"
+  - key: "171:strength_3"
+    label: "PusaV1 LoRA"
+    type: lora_switch
+    group: lora
+    hint: "关闭可减少额外风格化"
+  - key: "171:strength_4"
+    label: "Fun InP LoRA"
+    type: lora_switch
+    group: lora
+    hint: "关闭可减少低噪声风格注入"
+  - key: "65:positive_prompt"
+    label: "正向提示词"
+    type: text
+    group: prompt
+    rows: 4
+    hint: "强调保身份、画质等语义引导"
+  - key: "65:negative_prompt"
+    label: "负向提示词"
+    type: text
+    group: prompt
+    rows: 5
+    hint: "抑制动漫脸、比例扭曲等不希望出现的特征"
+defaults:
+  width: 468
+  height: 832
+  seconds: 30
+poll_interval_seconds: 2
+timeout_seconds: 1200
+audio_fallback_enabled: true
+api:
+  host: "0.0.0.0"
+  port: 6020
+  base_url: "http://127.0.0.1:6020"
+# Empty string: ComfyManager starts main.py directly (Docker default).
+# On AutoDL dev, set COMFY_START_SCRIPT=/root/zealman-app/start-comfyui.sh
+comfy_start_script: ""
+comfy_stop_port: 6006
+workflow_id: "P07-动作迁移-Wan2.2AnimateV4"
+samples:
+  image: "/app/ComfyUI/input/image (17).png"
+  video: "/app/ComfyUI/input/5053929f1d2c2ef117a3a8b8c02075c7da53e5380365bc2f8a87992986058e39.mp4"

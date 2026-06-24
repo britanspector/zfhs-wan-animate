@@ -1,0 +1,11 @@
+**/.git
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/node_modules
+wan-animate-web/node_modules
+wan-animate-api/data/jobs.json
+**/.cursor
+**/*.log
+docker/volumes/**

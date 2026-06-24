@@ -1,0 +1,8 @@
+# Copy to config/local.yaml for AutoDL / bare-metal dev (optional).
+# Values here override default.yaml when loaded via ZFHS_CONFIG_PATH.
+
+comfy_root: "/root/ComfyUI"
+comfy_start_script: "/root/zealman-app/start-comfyui.sh"
+samples:
+  image: "/root/ComfyUI/input/image (17).png"
+  video: "/root/ComfyUI/input/5053929f1d2c2ef117a3a8b8c02075c7da53e5380365bc2f8a87992986058e39.mp4"

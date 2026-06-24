@@ -1,0 +1,53 @@
+workflow_id: P07-动作迁移-Wan2.2AnimateV4
+workflow_file: workflows/p07_animate_v4.json
+fps: 30
+max_seconds: 30
+output_node_id: "867"
+
+inputs:
+  - node_id: "57"
+    class_type: LoadImage
+    field: image
+    description: 角色参考图（ComfyUI input 相对文件名）
+
+  - node_id: "997"
+    class_type: VHS_LoadVideo
+    field: video
+    description: 动作参考视频（ComfyUI input 相对文件名）
+
+parameters:
+  - node_id: "1001"
+    class_type: INTConstant
+    field: value
+    default: 468
+    description: 输出视频宽度
+
+  - node_id: "1002"
+    class_type: INTConstant
+    field: value
+    default: 832
+    description: 输出视频高度
+
+  - node_id: "1003"
+    class_type: INTConstant
+    field: value
+    default: 900
+    description: 最大帧数（seconds * fps）
+
+  - node_id: "1004"
+    class_type: PrimitiveFloat
+    field: value
+    default: 30
+    description: 帧率（一般保持 30）
+
+output:
+  - node_id: "867"
+    class_type: VHS_VideoCombine
+    description: 最终输出节点，将生成画面与参考视频音轨合成 MP4
+    audio_source:
+      node_id: "997"
+      output_slot: 2
+    fields:
+      audio: ["997", 2]
+      format: video/h264-mp4
+      trim_to_audio: false

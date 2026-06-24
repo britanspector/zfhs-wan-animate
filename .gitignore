@@ -1,0 +1,40 @@
+config/local.yaml
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.mypy_cache/
+
+# Runtime / logs
+.run/
+*.log
+
+# Jupyter
+**/.ipynb_checkpoints/
+
+# Frontend
+wan-animate-web/node_modules/
+wan-animate-web/dist/
+
+# API runtime data
+wan-animate-api/data/jobs.json
+
+# Docker volumes (models ~33GB)
+docker/volumes/models/*
+!docker/volumes/models/.gitkeep
+docker/volumes/input/*
+!docker/volumes/input/.gitkeep
+docker/volumes/output/*
+!docker/volumes/output/.gitkeep
+docker/volumes/data/*
+!docker/volumes/data/.gitkeep
+
+# Custom nodes copied from host ComfyUI before docker build (~69MB)
+docker/vendor/custom_nodes/*
+!docker/vendor/.gitkeep
+!docker/vendor/custom_nodes/.gitkeep
+
+# IDE
+.cursor/
+.vscode/
