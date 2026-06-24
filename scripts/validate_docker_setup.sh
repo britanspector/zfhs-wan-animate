@@ -18,7 +18,11 @@ required=(
 )
 
 for f in "${required[@]}"; do
-  [[ -f "${f}" ]] || { echo "MISSING ${f}" >&2; exit 1; }
+  if [[ -d "${f}" ]]; then
+    [[ -e "${f}" ]] || { echo "MISSING ${f}" >&2; exit 1; }
+  else
+    [[ -f "${f}" ]] || { echo "MISSING ${f}" >&2; exit 1; }
+  fi
 done
 
 python3 -c "import yaml; yaml.safe_load(open('docker/docker-compose.yml'))"

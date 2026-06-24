@@ -310,6 +310,8 @@ zfhs-wan-animate/
 | 项 | 说明 |
 |----|------|
 | `docker/vendor/` | 不提交 Git，构建前必须 `prepare_docker_build.sh` |
+| AutoDL 内 docker build | 嵌套容器无 `unshare` 权限，需在完整 Docker 主机构建 |
+| GitHub 推送 | 需将 SSH 公钥添加到 GitHub，见 [GITHUB_SETUP.md](./GITHUB_SETUP.md) |
 | ComfyUI 模板 URL | 安装后需**重启 ComfyUI** 才生效 |
 | 模型体积 | 33.5GB，需提前准备或软链 |
 | zealman-app 只读 | P07 模板用 `setup_comfy_p07_template.sh` 代替 `update-symlinks.sh` |
@@ -329,7 +331,7 @@ zfhs-wan-animate/
 | [wan-animate-web/README.md](../wan-animate-web/README.md) | 前端开发说明 |
 | [ACCEPTANCE.md](../ACCEPTANCE.md) | P1 验收 |
 | [ACCEPTANCE_P3.md](../ACCEPTANCE_P3.md) | P3 验收 |
-| [ACCEPTANCE_P4.md](../ACCEPTANCE_P4.md) | P4 Docker 验收 |
+| [GITHUB_SETUP.md](./GITHUB_SETUP.md) | Git 推送与 SSH 公钥 |
 
 ---
 

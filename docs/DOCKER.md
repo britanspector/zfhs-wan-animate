@@ -109,3 +109,24 @@ docker compose exec wan-animate python wan-animate-api/scripts/test_api_acceptan
 ## AutoDL 裸机开发
 
 复制 `config/local.yaml.example` 为 `config/local.yaml`，覆盖 `/root/ComfyUI` 路径。Docker 默认使用 `config/default.yaml`（`/app/...`）。
+
+### AutoDL 实例内构建镜像的限制
+
+AutoDL 实例通常为**嵌套容器**环境，可能缺少 `unshare` / overlay bind mount 权限，导致 `docker build` 失败：
+
+```
+Error response from daemon: unshare: operation not permitted
+```
+
+**推荐**：在具备完整 Docker 权限的机器（本地工作站、云 VM、CI）上构建：
+
+```bash
+git clone git@github.com:britanspector/zfhs-wan-animate.git
+cd zfhs-wan-animate
+source /etc/network_turbo   # AutoDL 上拉代码时可选
+bash scripts/prepare_docker_build.sh
+bash scripts/prepare_docker_volumes.sh
+cd docker && docker compose build && docker compose up -d
+```
+
+本机仅可运行 `scripts/validate_docker_setup.sh` 做离线文件校验。
