@@ -3,16 +3,22 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="${COMFYUI_ROOT:-/root/ComfyUI}/models"
+COMFY_ROOT="${COMFYUI_ROOT:-/root/ComfyUI}"
 DST="${ROOT}/docker/volumes/models"
 
+log() { echo "[prepare_docker_volumes] $*"; }
+
+log "Ensuring P07 model symlinks under ${COMFY_ROOT}/models ..."
+bash "${ROOT}/scripts/setup_models.sh"
+
+SRC="${COMFY_ROOT}/models"
 if [[ ! -d "${SRC}" ]]; then
   echo "Source models dir not found: ${SRC}" >&2
   exit 1
 fi
 
 mkdir -p "${DST}"
-echo "Linking ${SRC}/* -> ${DST}/"
+log "Linking ${SRC}/* -> ${DST}/"
 shopt -s nullglob
 for item in "${SRC}"/*; do
   name="$(basename "${item}")"
@@ -22,4 +28,4 @@ for item in "${SRC}"/*; do
   fi
   ln -s "${item}" "${target}"
 done
-echo "Done. Run: cd docker && docker compose up -d"
+log "Done. Run: cd docker && docker compose up -d"

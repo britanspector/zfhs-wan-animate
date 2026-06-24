@@ -11,8 +11,9 @@
 1. ComfyUI 已在 **6006** 端口运行：
 
 ```bash
-bash /root/zealman-app/start-comfyui.sh
+bash scripts/start-comfyui.sh
 # 或
+bash scripts/start-wan-animate.sh --with-comfy
 curl -s http://127.0.0.1:6006/system_stats
 ```
 
@@ -54,7 +55,7 @@ ssh -L 6006:127.0.0.1:6006 user@<autodl-host>
 图形界面请 Load **UI 格式** JSON：
 
 ```
-/root/zealman-app/comfyui-workflows/P视频-动作迁移/P07-动作迁移-Wan2.2AnimateV4.json
+assets/workflows/ui/p07_animate_v4_ui.json
 ```
 
 加载后设置：
@@ -137,6 +138,6 @@ TUNABLES = {
 | 现象 | 处理 |
 |------|------|
 | `ComfyUI unreachable` | 确认 6006 已启动 |
-| 模型 missing | 运行 `update-symlinks.sh` 或对照 `docs/ASSETS_MIGRATION.md` |
+| 模型 missing | 运行 `bash scripts/setup_models.sh` 或对照 `docs/ASSETS_MIGRATION.md` |
 | 轮询超时 | 增大 `SECONDS` 对应超时已自动计算；检查 `nvidia-smi` |
 | ONNX 姿态检测失败 | 重启 ComfyUI，确保 `LD_LIBRARY_PATH` 含 cudnn |

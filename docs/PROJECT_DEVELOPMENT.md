@@ -7,17 +7,19 @@
 **zfhs-wan-animate** 是从 zealman 面板 **P07 Wan2.2 Animate** 工作流抽离出的独立子项目，目标：
 
 - 将「动作迁移」能力封装为可复用的 **Python 库 + CLI + HTTP API + Web UI**
-- 与母环境 [`/root/zealman-app`](../../zealman-app) 解耦：模型与 ComfyUI 仍驻留宿主机，本子项目只携带 **API Prompt 工作流**、网关代码、前端与 Docker 打包脚本
-- 支持 **AutoDL 裸机开发** 与 **Docker 瘦镜像部署** 两种模式
+- 与母环境解耦：模型通过 `scripts/setup_models.sh` 从 AutoDL 平台缓存软链；ComfyUI 通过 `scripts/start-comfyui.sh` 启动
+- 支持 **AutoDL 裸机独立部署** 与 **Docker 瘦镜像部署** 两种模式
 
-### 与 zealman-app 的关系
+详见 [STANDALONE.md](./STANDALONE.md)。
+
+### 与 zealman-app 的历史关系
 
 | 资源 | 位置 | 本子项目如何处理 |
 |------|------|------------------|
 | ComfyUI 安装 | `/root/ComfyUI` | 运行时 HTTP 连接 6006；Docker 内自建 ComfyUI |
-| 模型权重（33.5GB） | `ComfyUI/models/` | 外挂卷，不进入 Git / 不烘焙镜像 |
-| Custom nodes（8 个） | `ComfyUI/custom_nodes/` | Docker 构建前复制到 `docker/vendor/` |
-| UI 格式工作流 | `zealman-app/comfyui-workflows/` | 画布 Load 用；本子项目用 API 格式 |
+| 模型权重（33.5GB） | AutoDL 平台缓存 → `ComfyUI/models/` | `manifest/model_sources.autodl.yaml` + `setup_models.sh` |
+| Custom nodes（8 个） | `ComfyUI/custom_nodes/` | `install_custom_nodes.sh` / Docker `docker/vendor/` |
+| UI 格式工作流 | `assets/workflows/ui/` | 画布 Load 用；本子项目用 API 格式 |
 | API Prompt 工作流 | `workflows/p07_animate_v4.json` / `v5.json` | 核心交付物 |
 
 ---
@@ -89,7 +91,7 @@ flowchart LR
 - 5 路 LoRA（重光照、Lightning 4步、FastWan、Pusa、Fun）
 - ONNX 姿态检测（vitpose、yolov10）
 
-Docker 部署：`bash scripts/prepare_docker_volumes.sh` 将宿主机模型软链到 `docker/volumes/models/`。
+Docker 部署：`bash scripts/setup_models.sh` 后 `bash scripts/prepare_docker_volumes.sh` 将模型软链到 `docker/volumes/models/`。
 
 ### 3.2 Custom Nodes（8 个，烘焙进镜像）
 
@@ -119,7 +121,7 @@ bash scripts/prepare_docker_build.sh
 | 格式 | 路径 | 用途 |
 |------|------|------|
 | API Prompt | `workflows/p07_animate_v4.json`、`p07_animate_v5.json` | CLI / API / Notebook `/prompt` |
-| UI 画布 | `zealman-app/comfyui-workflows/P07-...json` | ComfyUI 6006 手动 Load |
+| UI 画布 | `assets/workflows/ui/p07_animate_v4_ui.json` | ComfyUI 6006 手动 Load |
 | 模板 URL | `?template=p07_wan22_animate_v4&source=zealman-workflow-templates` | 书签一键打开画布 |
 
 ### 3.4 配置分层
@@ -313,8 +315,8 @@ zfhs-wan-animate/
 | AutoDL 内 docker build | 嵌套容器无 `unshare` 权限，需在完整 Docker 主机构建 |
 | GitHub 推送 | 需将 SSH 公钥添加到 GitHub，见 [GITHUB_SETUP.md](./GITHUB_SETUP.md) |
 | ComfyUI 模板 URL | 安装后需**重启 ComfyUI** 才生效 |
-| 模型体积 | 33.5GB，需提前准备或软链 |
-| zealman-app 只读 | P07 模板用 `setup_comfy_p07_template.sh` 代替 `update-symlinks.sh` |
+| 模型体积 | 33.5GB，运行 `scripts/setup_models.sh` 从 AutoDL 缓存软链 |
+| 独立部署 | 见 [STANDALONE.md](./STANDALONE.md)，无需 zealman-app |
 | 完整生成耗时 | 30s 视频约 10+ 分钟（视 GPU 与 steps） |
 
 ---
@@ -324,6 +326,7 @@ zfhs-wan-animate/
 | 文档 | 内容 |
 |------|------|
 | [README.md](../README.md) | 快速开始、端口、CLI |
+| [STANDALONE.md](./STANDALONE.md) | AutoDL 独立部署（无 zealman-app） |
 | [DOCKER.md](./DOCKER.md) | Docker 构建、compose、排错 |
 | [ASSETS_MIGRATION.md](./ASSETS_MIGRATION.md) | 模型与节点清单 |
 | [notebooks/README.md](../notebooks/README.md) | Notebook 使用说明 |

@@ -3,7 +3,8 @@
 # URL: http://127.0.0.1:6006/?template=p07_wan22_animate_v4&source=zealman-workflow-templates
 set -e
 
-P07_UI_SRC="/root/zealman-app/comfyui-workflows/P视频-动作迁移/P07-动作迁移-Wan2.2AnimateV4.json"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+P07_UI_SRC="${ROOT}/assets/workflows/ui/p07_animate_v4_ui.json"
 TEMPLATE_DIR="/root/ComfyUI/custom_nodes/zealman-workflow-templates/example_workflows"
 TEMPLATE_LINK="${TEMPLATE_DIR}/p07_wan22_animate_v4.json"
 

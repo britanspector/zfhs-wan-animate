@@ -76,9 +76,9 @@ if $WITH_COMFY; then
   if port_listening "$COMFY_PORT"; then
     log "ComfyUI 已在端口 ${COMFY_PORT} 运行"
   else
-    COMFY_SCRIPT="/root/zealman-app/start-comfyui.sh"
+    COMFY_SCRIPT="${COMFY_START_SCRIPT:-${ROOT}/scripts/start-comfyui.sh}"
     if [[ -x "$COMFY_SCRIPT" ]] || [[ -f "$COMFY_SCRIPT" ]]; then
-      log "后台启动 ComfyUI..."
+      log "后台启动 ComfyUI (${COMFY_SCRIPT})..."
       nohup bash "$COMFY_SCRIPT" > "${PID_DIR}/comfyui.log" 2>&1 &
       echo $! > "$COMFY_PID"
       for _ in 1 2 3 4 5 6 7 8 9 10; do

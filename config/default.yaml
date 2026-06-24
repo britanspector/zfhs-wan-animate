@@ -108,7 +108,8 @@ api:
   port: 6020
   base_url: "http://127.0.0.1:6020"
 # Empty string: ComfyManager starts main.py directly (Docker default).
-# On AutoDL dev, set COMFY_START_SCRIPT=/root/zealman-app/start-comfyui.sh
+# Bare-metal AutoDL: use scripts/start-comfyui.sh via start-wan-animate.sh --with-comfy
+# or set COMFY_START_SCRIPT=/path/to/zfhs-wan-animate/scripts/start-comfyui.sh
 comfy_start_script: ""
 comfy_stop_port: 6006
 workflow_id: "P07-动作迁移-Wan2.2AnimateV4"
