@@ -120,9 +120,10 @@ bash scripts/prepare_docker_build.sh
 
 | 格式 | 路径 | 用途 |
 |------|------|------|
-| API Prompt | `workflows/p07_animate_v4.json`、`p07_animate_v5.json` | CLI / API / Notebook `/prompt` |
-| UI 画布 | `assets/workflows/ui/p07_animate_v4_ui.json` | ComfyUI 6006 手动 Load |
-| 模板 URL | `?template=p07_wan22_animate_v4&source=zealman-workflow-templates` | 书签一键打开画布 |
+| API Prompt | `workflows/p07_animate_v4.json`、`p07_animate_v5.json` | CLI / API / Notebook `/prompt`（**勿在画布 Load**） |
+| UI 画布 v4 | `assets/workflows/ui/p07_animate_v4_ui.json` | ComfyUI 6006 手动 Load（含 `nodes`/`links`） |
+| UI 画布 v5 | `assets/workflows/ui/p07_animate_v5_ui.json` | 保身份版画布 Load |
+| 模板 URL | `?template=p07_wan22_animate_v4&source=zfhs-workflow-templates` | 书签一键打开 v4 画布 |
 
 ### 3.4 配置分层
 

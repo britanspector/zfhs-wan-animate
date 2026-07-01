@@ -6,6 +6,7 @@ import type { PreviewState, WorkflowConfig } from '../types/workflow'
 import { defaultTunablesForVariant } from '../types/workflow'
 import { useComfyProgress } from './useComfyProgress'
 import { formatWorkflowError } from '../utils/formatError'
+import { normalizeMediaUrl } from '../utils/normalizeMediaUrl'
 
 const DEFAULT_IMAGE = 'image (17).png'
 const DEFAULT_VIDEO = '5053929f1d2c2ef117a3a8b8c02075c7da53e5380365bc2f8a87992986058e39.mp4'
@@ -68,7 +69,7 @@ function applyResult(
   }
   if (res.results?.length) {
     setPreviewState('loadingResult')
-    setVideoUrl(res.results[0].url)
+    setVideoUrl(normalizeMediaUrl(res.results[0].url))
     setFinalElapsed(Math.floor((Date.now() - startMs) / 1000))
     setPreviewState('success')
     setMessage('生成完成')
@@ -158,7 +159,7 @@ export function useGenerate(config: WorkflowConfig) {
 
         const completed = hist.jobs.find((j) => j.status === 'completed' && j.results?.length)
         if (completed?.results?.[0]) {
-          setVideoUrl(completed.results[0].url)
+          setVideoUrl(normalizeMediaUrl(completed.results[0].url))
           setPreviewState('success')
           setPromptId(completed.prompt_id)
           setMessage(`已恢复上次生成：${completed.prompt_id}`)
@@ -326,7 +327,7 @@ export function useGenerate(config: WorkflowConfig) {
       if (promptId) {
         const res = await api.getResult(promptId)
         if (!res.pending && res.results?.length) {
-          setVideoUrl(res.results[0].url)
+          setVideoUrl(normalizeMediaUrl(res.results[0].url))
           setPreviewState('success')
           setMessage(`已加载结果：${promptId}`)
           return
@@ -339,7 +340,7 @@ export function useGenerate(config: WorkflowConfig) {
         return
       }
       const item = done.results[0] as WorkflowResultItem
-      setVideoUrl(item.url)
+      setVideoUrl(normalizeMediaUrl(item.url))
       setPreviewState('success')
       setMessage(`已加载历史：${done.prompt_id}`)
     } catch (err) {

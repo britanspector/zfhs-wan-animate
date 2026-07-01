@@ -8,8 +8,8 @@ function formatTime(sec: number) {
 
 export function ProgressCard({ progress }: { progress: ProgressState }) {
   return (
-    <div className="flex flex-col items-center gap-4 py-8">
-      <div className="h-12 w-12 animate-pulse rounded-xl bg-morandi-mist/40" />
+    <div className="flex flex-col items-center gap-3 py-4">
+      <div className="h-12 w-12 animate-pulse rounded-xl bg-morandi-primary-light/40" />
       <p className="text-lg font-medium text-morandi-text">角色融合与动画合成中...</p>
       <p className="text-sm text-morandi-muted">{formatTime(progress.elapsedSeconds)}</p>
       {progress.currentNodeName && (
@@ -23,7 +23,7 @@ export function ProgressCard({ progress }: { progress: ProgressState }) {
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-morandi-border">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-morandi-mist to-morandi-primary shimmer-bar"
+              className="h-full rounded-full bg-gradient-to-r from-morandi-primary-light to-morandi-primary shimmer-bar"
               style={{ width: `${progress.workflowProgress}%` }}
             />
           </div>
@@ -35,7 +35,7 @@ export function ProgressCard({ progress }: { progress: ProgressState }) {
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-morandi-border">
             <div
-              className="h-full rounded-full bg-morandi-sage transition-all"
+              className="h-full rounded-full bg-morandi-accent transition-all"
               style={{ width: `${progress.nodeProgress}%` }}
             />
           </div>

@@ -27,7 +27,7 @@ export function ControlPanel({
   const isSafeSize = width === 468 && height === 832
 
   return (
-    <div className="rounded-2xl bg-morandi-surface p-4 shadow-sm ring-1 ring-morandi-border/60">
+    <div className="card">
       <InfoBanner />
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="block text-sm">

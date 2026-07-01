@@ -46,12 +46,12 @@ export function AnimatePage() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-8">
+    <div className="px-4 py-3">
       <Header />
       <TwoColumnLayout
         left={
           <>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <UploadZone
                 label="角色图像"
                 accept="image/*"
@@ -92,7 +92,7 @@ export function AnimatePage() {
               onReset={gen.resetDefaults}
             />
             <Button
-              className="w-full py-3 text-base"
+              className="w-full py-2.5 text-base"
               disabled={ctaDisabled}
               onClick={ctaAction}
             >

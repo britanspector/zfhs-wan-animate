@@ -27,7 +27,7 @@ def workflow_list(request: Request) -> list[dict[str, Any]]:
 @router.get("/api/workflow/config/{workflow_id}")
 def workflow_config(workflow_id: str, request: Request) -> dict[str, Any]:
     try:
-        return request.app.state.workflow_service.get_config(workflow_id)
+        return request.app.state.workflow_service.get_config(workflow_id, request=request)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -51,10 +51,10 @@ def workflow_generate(body: GenerateBody, request: Request) -> dict[str, Any]:
 
 @router.get("/api/workflow/result")
 def workflow_result(request: Request, prompt_id: str = Query(...)) -> dict[str, Any]:
-    return request.app.state.workflow_service.result(prompt_id)
+    return request.app.state.workflow_service.result(prompt_id, request=request)
 
 
 @router.get("/api/workflow/history")
 def workflow_history(request: Request, limit: int = Query(default=50, ge=1, le=200)) -> dict[str, Any]:
-    jobs = request.app.state.workflow_service.history(limit=limit)
+    jobs = request.app.state.workflow_service.history(limit=limit, request=request)
     return {"success": True, "jobs": jobs}

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 DEFAULT_FPS = 30
+OUTPUT_SUBFOLDER = "zfhs-wan-animate"
+OUTPUT_NAME_PREFIX = "角色迁移"
 NODE_IMAGE = "57"
 NODE_VIDEO = "997"
 NODE_WIDTH = "1001"
@@ -60,6 +63,37 @@ def extract_tunable_defaults(
     return out
 
 
+def build_output_filename_prefix(
+    image_name: str,
+    video_name: str,
+    *,
+    subfolder: str = OUTPUT_SUBFOLDER,
+    name_prefix: str = OUTPUT_NAME_PREFIX,
+) -> str:
+    img = Path(image_name).stem
+    vid = Path(video_name).stem
+    base = f"{name_prefix}_{img}_{vid}"
+    safe = re.sub(r'[\\/:*?"<>|]', "_", base)
+    return f"{subfolder}/{safe}"
+
+
+def patch_output_naming(
+    data: dict,
+    image_name: str,
+    video_name: str,
+    *,
+    subfolder: str = OUTPUT_SUBFOLDER,
+    name_prefix: str = OUTPUT_NAME_PREFIX,
+) -> None:
+    prefix = build_output_filename_prefix(
+        image_name,
+        video_name,
+        subfolder=subfolder,
+        name_prefix=name_prefix,
+    )
+    _patch_node(data, NODE_OUTPUT, "filename_prefix", prefix)
+
+
 def build_prompt_with_tunables(
     *,
     image_name: str,
@@ -83,6 +117,7 @@ def build_prompt_with_tunables(
     if tunables:
         values.update(tunables)
     apply_input_values(data, values, fps=fps)
+    patch_output_naming(data, image_name, video_name)
     ensure_audio_wiring(data, trim_to_audio=trim_to_audio)
     return data
 
@@ -119,6 +154,7 @@ def build_prompt(
     _patch_node(data, NODE_WIDTH, "value", width)
     _patch_node(data, NODE_HEIGHT, "value", height)
     _patch_node(data, NODE_FRAMES, "value", max(1, seconds * fps))
+    patch_output_naming(data, image_name, video_name)
     ensure_audio_wiring(data, trim_to_audio=trim_to_audio)
     return data
 

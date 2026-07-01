@@ -7,6 +7,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -29,9 +30,14 @@ class OutputFile:
         return base / self.filename
 
     def output_url(self, api_base: str = "") -> str:
+        segs: list[str] = []
         if self.subfolder:
-            return f"{api_base.rstrip('/')}/output/{self.subfolder}/{self.filename}"
-        return f"{api_base.rstrip('/')}/output/{self.filename}"
+            segs.extend(quote(part, safe="") for part in self.subfolder.split("/") if part)
+        segs.append(quote(self.filename, safe=""))
+        path = "/output/" + "/".join(segs)
+        if api_base:
+            return f"{api_base.rstrip('/')}{path}"
+        return path
 
 
 @dataclass
@@ -55,10 +61,13 @@ def build_view_url(
     file_type: str = "output",
     subfolder: str = "",
 ) -> str:
-    params = f"filename={filename}&type={file_type}"
+    params = f"filename={quote(filename)}&type={quote(file_type)}"
     if subfolder:
-        params += f"&subfolder={subfolder}"
-    return f"{base_url.rstrip('/')}/view?{params}"
+        params += f"&subfolder={quote(subfolder)}"
+    path = f"/view?{params}"
+    if base_url:
+        return f"{base_url.rstrip('/')}{path}"
+    return path
 
 
 class ComfyClient:

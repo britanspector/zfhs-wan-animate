@@ -42,14 +42,14 @@ def _normalize_onnx_message(msg: str) -> str:
     if "CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH" in msg:
         return (
             "ONNX CUDA/cuDNN 版本不匹配。"
-            "请通过 zealman 启动脚本重启 ComfyUI，确保 cuDNN 库路径正确。"
+            "请运行 bash scripts/start-comfyui.sh 重启 ComfyUI，确保 cuDNN 库路径正确。"
         )
     if "Failed to allocate memory for requested buffer of size" in msg:
         m = re.search(r"size (\d+)", msg)
         if m and int(m.group(1)) > 10**12:
             return (
                 "ONNX 在 GPU 上推理异常（多为 cuDNN 路径或损坏的 ONNX 会话）。"
-                "请重试；若仍失败请通过面板脚本重启 ComfyUI。"
+                "请重试；若仍失败请运行 bash scripts/start-comfyui.sh 重启 ComfyUI。"
             )
         return "ONNX 显存不足，请降低分辨率/时长或重启 ComfyUI 后重试。"
     if len(msg) > 320:

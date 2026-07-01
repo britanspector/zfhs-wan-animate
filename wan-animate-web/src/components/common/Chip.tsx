@@ -11,8 +11,8 @@ export function Chip({ label, active, onClick }: ChipProps) {
       onClick={onClick}
       className={`rounded-full px-4 py-1.5 text-sm transition ${
         active
-          ? 'bg-morandi-rose text-white shadow-sm'
-          : 'border border-morandi-border bg-morandi-surface text-morandi-muted hover:border-morandi-rose'
+          ? 'bg-morandi-primary text-white shadow-sm'
+          : 'border border-morandi-border bg-white text-morandi-muted hover:border-morandi-primary hover:text-morandi-primary'
       }`}
     >
       {label}

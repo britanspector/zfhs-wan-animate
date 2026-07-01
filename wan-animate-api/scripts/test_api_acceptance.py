@@ -16,6 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from zfhs_wan_animate.audio_mux import has_audio_stream  # noqa: E402
+from zfhs_wan_animate.runner import load_config  # noqa: E402
 
 API_BASE = "http://127.0.0.1:6020"
 COMFY_BASE = "http://127.0.0.1:6006"
@@ -23,8 +24,7 @@ WORKFLOW_ID = "P07-animate-v4"
 
 
 def load_samples() -> dict:
-    with (PROJECT_ROOT / "config" / "default.yaml").open(encoding="utf-8") as f:
-        return yaml.safe_load(f)["samples"]
+    return load_config().get("samples", {})
 
 
 def assert_true(cond: bool, msg: str) -> None:
@@ -68,6 +68,12 @@ def main() -> int:
     assert_true(len(cfg["duration_options"]) == 3, "duration options")
     assert_true(len(cfg.get("variants", [])) >= 2, "workflow variants v4/v5")
     assert_true(len(cfg.get("tunables", [])) >= 5, "tunable schema")
+    img_preview = cfg.get("samples", {}).get("image_preview_url", "")
+    assert_true("127.0.0.1" not in img_preview, f"sample image url not localhost: {img_preview}")
+    assert_true(
+        img_preview.startswith("/api/comfy/view") or img_preview.startswith("https://"),
+        f"sample image url valid: {img_preview}",
+    )
 
     # 4 upload image
     with image_path.open("rb") as f:
@@ -114,6 +120,11 @@ def main() -> int:
     assert_true(snap["1002"]["inputs"]["value"] == 832, "patched height")
     assert_true(snap["1003"]["inputs"]["value"] == 300, "patched frames")
     assert_true(snap["867"]["inputs"]["audio"] == ["997", 2], "audio wiring")
+    prefix = snap["867"]["inputs"].get("filename_prefix", "")
+    assert_true(
+        prefix.startswith("zfhs-wan-animate/角色迁移_"),
+        f"output filename_prefix uses zfhs-wan-animate naming: {prefix}",
+    )
 
     # queue non-empty
     time.sleep(1)

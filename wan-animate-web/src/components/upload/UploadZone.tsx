@@ -45,12 +45,12 @@ export function UploadZone({
           e.preventDefault()
           handleFiles(e.dataTransfer.files)
         }}
-        className="group relative flex min-h-[180px] cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-morandi-border bg-morandi-surface transition hover:border-morandi-primary"
+        className="group relative flex min-h-[140px] cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-morandi-border bg-morandi-hover/50 transition hover:border-morandi-primary hover:bg-morandi-hover"
       >
         {isVideo ? (
           <video
             src={previewUrl}
-            className="max-h-52 w-full object-contain"
+            className="max-h-36 w-full object-contain"
             muted
             playsInline
             controls={!isSample}
@@ -58,23 +58,23 @@ export function UploadZone({
             onLoadedMetadata={(e) => setDuration(Math.floor(e.currentTarget.duration))}
           />
         ) : (
-          <img src={previewUrl} alt={label} className="max-h-52 w-full object-contain" />
+          <img src={previewUrl} alt={label} className="max-h-36 w-full object-contain" />
         )}
         {isSample && (
-          <span className="pointer-events-none absolute left-2 top-2 rounded-md bg-morandi-mist/90 px-2 py-0.5 text-xs text-white">
+          <span className="pointer-events-none absolute left-2 top-2 rounded-md bg-morandi-primary px-2 py-0.5 text-xs text-white">
             {isVideo ? '示例视频' : '示例图'}
           </span>
         )}
         {duration !== null && isVideo && (
-          <span className="pointer-events-none absolute right-2 top-2 rounded-md bg-morandi-text/70 px-2 py-0.5 text-xs text-white">
+          <span className="pointer-events-none absolute right-2 top-2 rounded-md bg-morandi-primary-dark/80 px-2 py-0.5 text-xs text-white">
             {duration}s
           </span>
         )}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-morandi-text/40 opacity-0 transition group-hover:opacity-100">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-morandi-primary/30 opacity-0 transition group-hover:opacity-100">
           <span
             role="button"
             tabIndex={0}
-            className="pointer-events-auto cursor-pointer rounded-lg bg-white/90 px-3 py-1 text-sm"
+            className="pointer-events-auto cursor-pointer rounded-lg bg-white px-3 py-1 text-sm text-morandi-primary shadow-sm"
             onClick={(e) => {
               e.stopPropagation()
               openPicker()

@@ -6,5 +6,5 @@ comfy_root: "/root/ComfyUI"
 # comfy_start_script: "scripts/start-comfyui.sh"
 comfy_start_script: ""
 samples:
-  image: "/root/ComfyUI/input/image (17).png"
-  video: "/root/ComfyUI/input/5053929f1d2c2ef117a3a8b8c02075c7da53e5380365bc2f8a87992986058e39.mp4"
+  image: "/root/ComfyUI/input/C罗.jpg"
+  video: "/root/ComfyUI/input/世界杯手势舞.mp4"

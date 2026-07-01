@@ -41,4 +41,8 @@ def load_settings() -> dict:
     if not os.environ.get("WAN_ANIMATE_DATA_DIR") and (PROJECT_ROOT / "wan-animate-api" / "data").is_dir():
         jobs_default = PROJECT_ROOT / "wan-animate-api" / "data" / "jobs.json"
     cfg["jobs_path"] = Path(os.environ.get("WAN_ANIMATE_JOBS_PATH", jobs_default))
+    cfg["public_base_url"] = os.environ.get(
+        "WAN_ANIMATE_PUBLIC_BASE_URL",
+        os.environ.get("AutoDLService6008URL", cfg.get("public_base_url", "")),
+    ).rstrip("/")
     return cfg

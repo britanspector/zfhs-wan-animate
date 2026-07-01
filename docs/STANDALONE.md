@@ -82,6 +82,8 @@ bash scripts/setup_models.sh          # 缺源时 WARN，继续
 bash scripts/setup_models.sh --strict # 缺源时 exit 1（bootstrap 使用）
 ```
 
+若公共缓存缺 hash 或不在 AutoDL 环境，可从 Hugging Face 下载实体文件到系统盘，详见 [`docs/ASSETS_MIGRATION.md`](ASSETS_MIGRATION.md) 与 `bash scripts/download_models.sh`。
+
 ## ComfyUI 启动
 
 项目自有 [`scripts/start-comfyui.sh`](../scripts/start-comfyui.sh)：
@@ -102,14 +104,21 @@ P07 依赖 8 个 custom nodes，清单见 [`manifest/custom_nodes.yaml`](../mani
 
 ## 画布 UI 工作流
 
-UI 格式 JSON 已内置：[`assets/workflows/ui/p07_animate_v4_ui.json`](../assets/workflows/ui/p07_animate_v4_ui.json)
+UI 格式 JSON（含 `nodes` / `links`，可在 ComfyUI 6006 画布 Load）：
+
+| 版本 | 文件 |
+|------|------|
+| v4 | [`assets/workflows/ui/p07_animate_v4_ui.json`](../assets/workflows/ui/p07_animate_v4_ui.json) |
+| v5 | [`assets/workflows/ui/p07_animate_v5_ui.json`](../assets/workflows/ui/p07_animate_v5_ui.json) |
+
+`workflows/p07_animate_v4.json` 与 `workflows/p07_animate_v5.json` 为 **API Prompt 格式**，供 `/prompt` 使用；在画布中 Load 会显示空白，请勿混用。
 
 可选安装 ComfyUI 模板 URL：
 
 ```bash
 bash scripts/setup_comfy_p07_template.sh
 # 重启 ComfyUI 后：
-# http://127.0.0.1:6006/?template=p07_wan22_animate_v4&source=zealman-workflow-templates
+# http://127.0.0.1:6006/?template=p07_wan22_animate_v4&source=zfhs-workflow-templates
 ```
 
 ## 环境变量

@@ -15,6 +15,12 @@ from zfhs_wan_animate.runner import (
 )
 from zfhs_wan_animate.workflow_p07 import extract_tunable_defaults
 
+from public_urls import (
+    build_api_view_path_url,
+    normalize_media_url,
+    resolve_public_base_url,
+)
+
 from .job_store import JobStore
 
 
@@ -66,7 +72,7 @@ class WorkflowService:
             )
         return out
 
-    def get_config(self, workflow_id: str | None = None) -> dict[str, Any]:
+    def get_config(self, workflow_id: str | None = None, request: Any | None = None) -> dict[str, Any]:
         variants_cfg = _workflow_variants(self.settings)
         default_variant = self.settings.get("default_workflow_variant", "v4")
         tunable_key_list = [str(t["key"]) for t in self.settings.get("tunables", []) if t.get("key")]
@@ -94,7 +100,9 @@ class WorkflowService:
 
         defaults = self.settings.get("defaults", {})
         samples = self.settings.get("samples", {})
-        api_base = self.settings.get("api", {}).get("base_url", "")
+        public_base = resolve_public_base_url(self.settings, request)
+        image_name = Path(samples["image"]).name if samples.get("image") else "C罗.jpg"
+        video_name = Path(samples["video"]).name if samples.get("video") else "世界杯手势舞.mp4"
         legacy_id = variants_cfg.get(default_variant, {}).get("id", "P07-animate-v4")
         return {
             "workflow_id": legacy_id,
@@ -123,8 +131,8 @@ class WorkflowService:
             "samples": {
                 "image": samples.get("image"),
                 "video": samples.get("video"),
-                "image_preview_url": f"{api_base}/api/comfy/view?filename=image%20(17).png&type=input",
-                "video_preview_url": f"{api_base}/api/comfy/view?filename=5053929f1d2c2ef117a3a8b8c02075c7da53e5380365bc2f8a87992986058e39.mp4&type=input",
+                "image_preview_url": build_api_view_path_url(public_base, image_name, "input"),
+                "video_preview_url": build_api_view_path_url(public_base, video_name, "input"),
             },
         }
 
@@ -201,7 +209,7 @@ class WorkflowService:
             "prompt_snapshot": submit.prompt,
         }
 
-    def result(self, prompt_id: str) -> dict[str, Any]:
+    def result(self, prompt_id: str, request: Any | None = None) -> dict[str, Any]:
         job = self.job_store.get(prompt_id)
         ref_video = None
         if job and job.get("video"):
@@ -210,7 +218,7 @@ class WorkflowService:
                 ref_video = Path(job["video"]) if Path(job["video"]).is_file() else None
 
         polled = poll_p07(prompt_id, config=self.cfg, ref_video_path=ref_video)
-        api_base = self.settings.get("api", {}).get("base_url", "")
+        public_base = resolve_public_base_url(self.settings, request)
 
         if polled.error:
             self.job_store.update(prompt_id, status="failed", error=polled.error)
@@ -231,7 +239,7 @@ class WorkflowService:
                 "results": [],
             }
 
-        results = [_output_to_result(out, api_base) for out in polled.outputs]
+        results = [_output_to_result(out, public_base) for out in polled.outputs]
         self.job_store.update(prompt_id, status="completed", results=results)
         return {
             "success": True,
@@ -247,8 +255,23 @@ class WorkflowService:
                 self.job_store.update(job["prompt_id"], status="interrupted")
         return {"success": True}
 
-    def history(self, limit: int = 50) -> list[dict[str, Any]]:
-        return self.job_store.list_recent(limit)
+    def history(self, limit: int = 50, request: Any | None = None) -> list[dict[str, Any]]:
+        public_base = resolve_public_base_url(self.settings, request)
+        jobs = self.job_store.list_recent(limit)
+        normalized: list[dict[str, Any]] = []
+        for job in jobs:
+            copy = dict(job)
+            results = copy.get("results") or []
+            copy["results"] = [
+                {
+                    **r,
+                    "url": normalize_media_url(r.get("url", ""), public_base),
+                    "view_url": normalize_media_url(r.get("view_url", ""), public_base),
+                }
+                for r in results
+            ]
+            normalized.append(copy)
+        return normalized
 
 
 def _parse_input_values(input_values: dict[str, object]) -> dict[str, Any]:
@@ -269,11 +292,11 @@ def _parse_input_values(input_values: dict[str, object]) -> dict[str, Any]:
     return out
 
 
-def _output_to_result(out: ComfyOutput, api_base: str) -> dict[str, Any]:
+def _output_to_result(out: ComfyOutput, public_base: str) -> dict[str, Any]:
     return {
         "type": "video",
         "filename": out.filename,
         "subfolder": out.subfolder,
-        "url": out.output_url(api_base),
-        "view_url": out.view_url,
+        "url": out.output_url(public_base),
+        "view_url": build_api_view_path_url(public_base, out.filename, "output", out.subfolder),
     }

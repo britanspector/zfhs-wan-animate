@@ -103,15 +103,26 @@ defaults:
 poll_interval_seconds: 2
 timeout_seconds: 1200
 audio_fallback_enabled: true
+output:
+  subfolder: zfhs-wan-animate
+  name_prefix: 角色迁移
 api:
   host: "0.0.0.0"
   port: 6020
+  # Internal base; public playback uses WAN_ANIMATE_PUBLIC_BASE_URL / relative /output paths
   base_url: "http://127.0.0.1:6020"
 # Empty string: ComfyManager starts main.py directly (Docker default).
 # Bare-metal AutoDL: use scripts/start-comfyui.sh via start-wan-animate.sh --with-comfy
 # or set COMFY_START_SCRIPT=/path/to/zfhs-wan-animate/scripts/start-comfyui.sh
 comfy_start_script: ""
 comfy_stop_port: 6006
+# AutoDL: public 6006=ComfyUI, 6008=nginx gateway (Web + Jupyter). Internal API stays on 6020.
+autodl:
+  gateway_port: 6008
+  api_internal_port: 6020
+  jupyter_port: 8888
+  comfy_public_env: AutoDLService6006URL
+  gateway_public_env: AutoDLService6008URL
 workflow_id: "P07-动作迁移-Wan2.2AnimateV4"
 samples:
   image: "/app/ComfyUI/input/image (17).png"

@@ -1,6 +1,6 @@
 # wan-animate-web
 
-P07 Wan2.2 Animate V4 莫兰迪色系单页应用。
+P07 Wan2.2 Animate V4 蓝白简洁风格单页应用。
 
 ## 开发
 
@@ -39,4 +39,4 @@ npm run preview
 - ComfyUI 启停、GPU 检测
 - WebSocket 进度（经 `/api/comfy/proxy/ws`）
 - 结果轮询与历史记录加载
-- 莫兰迪低饱和 UI
+- 蓝白简洁 UI（主色 #2d6fe0）

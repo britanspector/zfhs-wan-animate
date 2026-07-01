@@ -58,6 +58,29 @@ def main() -> int:
             else:
                 errors.append(f"workflow missing: {workflow}")
 
+        for ui_workflow in [
+            ROOT / "assets/workflows/ui/p07_animate_v4_ui.json",
+            ROOT / "assets/workflows/ui/p07_animate_v5_ui.json",
+        ]:
+            if not ui_workflow.is_file():
+                errors.append(f"ui workflow missing: {ui_workflow}")
+                continue
+            try:
+                import json
+
+                data = json.loads(ui_workflow.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                errors.append(f"ui workflow invalid json: {ui_workflow} ({exc})")
+                continue
+            if not data.get("nodes") or not data.get("links"):
+                errors.append(
+                    f"ui workflow is not canvas format (missing nodes/links): {ui_workflow}"
+                )
+            else:
+                ok.append(
+                    f"ui workflow: {ui_workflow} ({len(data['nodes'])} nodes, {len(data['links'])} links)"
+                )
+
         models_manifest = ROOT / "manifest" / "models.yaml"
         with models_manifest.open(encoding="utf-8") as f:
             models_data = yaml.safe_load(f) or {}

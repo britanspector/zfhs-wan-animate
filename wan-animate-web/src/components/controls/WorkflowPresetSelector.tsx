@@ -15,8 +15,8 @@ export function WorkflowPresetSelector({
   onChange,
 }: WorkflowPresetSelectorProps) {
   return (
-    <div className="rounded-2xl bg-morandi-surface p-4 shadow-sm ring-1 ring-morandi-border/60">
-      <p className="mb-2 text-sm font-medium text-morandi-text">工作流预设</p>
+    <div className="card">
+      <p className="mb-2 text-sm font-medium text-morandi-text">中升智学动作迁移实验项目工作流</p>
       <div className="flex flex-col gap-3 sm:flex-row">
         {variants.map((v) => (
           <div key={v.variant} className="flex-1">

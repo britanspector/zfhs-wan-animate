@@ -7,12 +7,16 @@ PID_DIR="${ROOT}/.run"
 API_PID="${PID_DIR}/wan-animate-api.pid"
 COMFY_PID="${PID_DIR}/comfyui.pid"
 VITE_PID="${PID_DIR}/vite.pid"
+JUPYTER_PID="${PID_DIR}/jupyter.pid"
+NGINX_PID="${PID_DIR}/nginx.pid"
 API_PORT="${WAN_ANIMATE_API_PORT:-6020}"
+API_HOST="${WAN_ANIMATE_API_HOST:-0.0.0.0}"
 COMFY_PORT=6006
 VITE_PORT=5173
 
 WITH_COMFY=false
 DEV_MODE=false
+AUTODL_MODE=false
 DO_STOP=false
 
 log() { echo "[start-wan-animate] $*"; }
@@ -40,6 +44,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --with-comfy) WITH_COMFY=true ;;
     --dev) DEV_MODE=true ;;
+    --autodl) AUTODL_MODE=true ;;
     --stop) DO_STOP=true ;;
     -h|--help)
       cat <<EOF
@@ -47,10 +52,12 @@ while [[ $# -gt 0 ]]; do
 
   --with-comfy   若 6006 未监听则后台启动 ComfyUI
   --dev          同时启动 Vite 开发前端 (5173)
+  --autodl       AutoDL 三服务栈 (6006/6008/6020/8888 + nginx)
   --stop         停止本脚本启动的进程
 
 示例:
   bash scripts/start-wan-animate.sh --with-comfy
+  bash scripts/start-wan-animate.sh --autodl
   bash scripts/start-wan-animate.sh --with-comfy --dev
 EOF
       exit 0
@@ -63,11 +70,17 @@ done
 mkdir -p "$PID_DIR"
 
 if $DO_STOP; then
+  stop_pidfile "$NGINX_PID" "nginx"
+  stop_pidfile "$JUPYTER_PID" "Jupyter"
   stop_pidfile "$VITE_PID" "Vite"
   stop_pidfile "$API_PID" "API"
   stop_pidfile "$COMFY_PID" "ComfyUI"
   log "已停止"
   exit 0
+fi
+
+if $AUTODL_MODE; then
+  exec bash "${ROOT}/scripts/start-autodl-services.sh" "$@"
 fi
 
 export PATH="/root/miniconda3/bin:/usr/local/bin:$PATH"
@@ -107,7 +120,7 @@ if port_listening "$API_PORT"; then
 else
   log "启动 API (uvicorn :${API_PORT})..."
   cd "$ROOT"
-  nohup uvicorn app:app --app-dir wan-animate-api --host 0.0.0.0 --port "$API_PORT" \
+  nohup uvicorn app:app --app-dir wan-animate-api --host "$API_HOST" --port "$API_PORT" \
     > "${PID_DIR}/api.log" 2>&1 &
   echo $! > "$API_PID"
   sleep 1
@@ -131,6 +144,6 @@ echo " Web 一键生成:  http://127.0.0.1:${API_PORT}"
 if $DEV_MODE; then
   echo " Vite 开发:     http://127.0.0.1:${VITE_PORT}"
 fi
-echo " P07 模板 URL:  http://127.0.0.1:${COMFY_PORT}/?template=p07_wan22_animate_v4&source=zealman-workflow-templates"
+echo " P07 模板 URL:  http://127.0.0.1:${COMFY_PORT}/?template=p07_wan22_animate_v4&source=zfhs-workflow-templates"
 echo " 停止: bash scripts/start-wan-animate.sh --stop"
 echo "=========================================="

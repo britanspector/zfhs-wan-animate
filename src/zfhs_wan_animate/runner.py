@@ -12,7 +12,14 @@ import yaml
 from zfhs_wan_animate.audio_mux import has_audio_stream, mux_reference_audio
 from zfhs_wan_animate.comfy_client import ComfyClient, ComfyOutput
 from zfhs_wan_animate.comfy_errors import parse_comfy_execution_error
-from zfhs_wan_animate.workflow_p07 import apply_input_values, build_prompt, load_workflow
+from zfhs_wan_animate.workflow_p07 import (
+    OUTPUT_NAME_PREFIX,
+    OUTPUT_SUBFOLDER,
+    apply_input_values,
+    build_prompt,
+    load_workflow,
+    patch_output_naming,
+)
 
 
 @dataclass
@@ -83,6 +90,8 @@ def resolve_runtime(cfg: dict[str, Any], **overrides) -> dict[str, Any]:
         "timeout": float(overrides.get("timeout") or cfg.get("timeout_seconds", 1200)),
         "audio_fallback": bool(cfg.get("audio_fallback_enabled", True)),
         "api_base_url": cfg.get("api", {}).get("base_url", ""),
+        "output_subfolder": str(cfg.get("output", {}).get("subfolder", OUTPUT_SUBFOLDER)),
+        "output_name_prefix": str(cfg.get("output", {}).get("name_prefix", OUTPUT_NAME_PREFIX)),
     }
 
 
@@ -98,12 +107,27 @@ def build_prompt_from_request(
     input_values: dict[str, object] | None = None,
     workflow_template: dict | None = None,
     trim_to_audio: bool = False,
+    output_subfolder: str = OUTPUT_SUBFOLDER,
+    output_name_prefix: str = OUTPUT_NAME_PREFIX,
 ) -> dict:
+    def _patch_output(data: dict) -> None:
+        img = image_name or (input_values or {}).get("57:image")
+        vid = video_name or (input_values or {}).get("997:video")
+        if img and vid:
+            patch_output_naming(
+                data,
+                str(img),
+                str(vid),
+                subfolder=output_subfolder,
+                name_prefix=output_name_prefix,
+            )
+
     if workflow_template is not None:
         data = dict(workflow_template)
         data.pop("_api_config", None)
         if input_values:
             apply_input_values(data, input_values, fps=fps)
+        _patch_output(data)
         return data
     if input_values:
         data = load_workflow(workflow_path)
@@ -112,6 +136,7 @@ def build_prompt_from_request(
             data["57"]["inputs"]["image"] = image_name
         if video_name:
             data["997"]["inputs"]["video"] = video_name
+        _patch_output(data)
         return data
     if not image_name or not video_name:
         raise ValueError("image_name and video_name are required without workflow_template")
@@ -152,6 +177,8 @@ def submit_p07(
         fps=rt["fps"],
         input_values=input_values,
         workflow_template=workflow_template,
+        output_subfolder=rt["output_subfolder"],
+        output_name_prefix=rt["output_name_prefix"],
     )
     cid = client_id or __import__("uuid").uuid4().hex
     with ComfyClient(rt["url"], comfy_root=rt["comfy_root"]) as client:
