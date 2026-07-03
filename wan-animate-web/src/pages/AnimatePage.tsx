@@ -98,6 +98,9 @@ export function AnimatePage() {
             >
               {ctaLabel}
             </Button>
+            <p className="text-center text-xs text-morandi-muted">
+              将使用：{gen.submitImageName} · {gen.submitVideoName}
+            </p>
           </>
         }
         right={

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { buildViewUrl } from '../api/endpoints'
+import { basenameFromPath, SAMPLE_IMAGE, SAMPLE_VIDEO } from '../constants/samples'
 import type { JobRecord, WorkflowResultItem } from '../types/api'
 import type { PreviewState, WorkflowConfig } from '../types/workflow'
 import { defaultTunablesForVariant } from '../types/workflow'
@@ -8,8 +9,6 @@ import { useComfyProgress } from './useComfyProgress'
 import { formatWorkflowError } from '../utils/formatError'
 import { normalizeMediaUrl } from '../utils/normalizeMediaUrl'
 
-const DEFAULT_IMAGE = 'image (17).png'
-const DEFAULT_VIDEO = '5053929f1d2c2ef117a3a8b8c02075c7da53e5380365bc2f8a87992986058e39.mp4'
 const SAFE_WIDTH = 468
 const SAFE_HEIGHT = 832
 
@@ -27,15 +26,19 @@ function pollTimeoutMs(seconds: number) {
   return Math.max(20 * 60 * 1000, seconds * 45 * 1000 + 8 * 60 * 1000)
 }
 
+function sampleNamesFromConfig(config: WorkflowConfig) {
+  return {
+    image: basenameFromPath(config.samples.image, SAMPLE_IMAGE),
+    video: basenameFromPath(config.samples.video, SAMPLE_VIDEO),
+  }
+}
+
 function sampleImageUrl(config: WorkflowConfig) {
-  return config.samples.image_preview_url ?? buildViewUrl(DEFAULT_IMAGE, 'input')
+  return config.samples.image_preview_url ?? buildViewUrl(SAMPLE_IMAGE, 'input')
 }
 
 function sampleVideoUrl(config: WorkflowConfig) {
-  return (
-    (config.samples as { video_preview_url?: string }).video_preview_url ??
-    buildViewUrl(DEFAULT_VIDEO, 'input')
-  )
+  return config.samples.video_preview_url ?? buildViewUrl(SAMPLE_VIDEO, 'input')
 }
 
 function pickRestoreJob(jobs: JobRecord[]): JobRecord | undefined {
@@ -81,6 +84,7 @@ function applyResult(
 }
 
 export function useGenerate(config: WorkflowConfig) {
+  const initialSamples = sampleNamesFromConfig(config)
   const [previewState, setPreviewState] = useState<PreviewState>('idle')
   const [message, setMessage] = useState('')
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
@@ -88,7 +92,15 @@ export function useGenerate(config: WorkflowConfig) {
   const [promptId, setPromptId] = useState<string | null>(null)
   const abortRef = useRef(false)
   const restoredRef = useRef(false)
-  const { progress, connect, disconnect, reset } = useComfyProgress()
+  const historyCheckedRef = useRef(false)
+  const {
+    progress,
+    prepareConnection,
+    disconnect,
+    reset,
+    bindPrompt,
+    takeDiagnosticLog,
+  } = useComfyProgress()
 
   const [width, setWidth] = useState(config.defaults.width)
   const [height, setHeight] = useState(config.defaults.height)
@@ -98,8 +110,8 @@ export function useGenerate(config: WorkflowConfig) {
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState(sampleImageUrl(config))
   const [videoPreview, setVideoPreview] = useState(sampleVideoUrl(config))
-  const [imageName, setImageName] = useState(DEFAULT_IMAGE)
-  const [videoName, setVideoName] = useState(DEFAULT_VIDEO)
+  const [imageName, setImageName] = useState(initialSamples.image)
+  const [videoName, setVideoName] = useState(initialSamples.video)
   const [imageSource, setImageSource] = useState<MediaSource>('sample')
   const [videoSource, setVideoSource] = useState<MediaSource>('sample')
   const [workflowVariant, setWorkflowVariant] = useState(
@@ -109,10 +121,33 @@ export function useGenerate(config: WorkflowConfig) {
     defaultTunablesForVariant(config, config.default_workflow_variant || 'v4'),
   )
 
+  const applySampleDefaults = useCallback(() => {
+    const names = sampleNamesFromConfig(config)
+    setImageName(names.image)
+    setVideoName(names.video)
+    setImagePreview(sampleImageUrl(config))
+    setVideoPreview(sampleVideoUrl(config))
+    setImageSource('sample')
+    setVideoSource('sample')
+    setImageFile(null)
+    setVideoFile(null)
+  }, [config])
+
   useEffect(() => {
     setWorkflowVariant(config.default_workflow_variant || 'v4')
     setTunables(defaultTunablesForVariant(config, config.default_workflow_variant || 'v4'))
-  }, [config])
+    if (!historyCheckedRef.current) return
+    if (imageSource === 'sample' && !imageFile) {
+      const names = sampleNamesFromConfig(config)
+      setImageName(names.image)
+      setImagePreview(sampleImageUrl(config))
+    }
+    if (videoSource === 'sample' && !videoFile) {
+      const names = sampleNamesFromConfig(config)
+      setVideoName(names.video)
+      setVideoPreview(sampleVideoUrl(config))
+    }
+  }, [config, imageSource, videoSource, imageFile, videoFile])
 
   const selectWorkflowVariant = useCallback(
     (variant: string) => {
@@ -134,7 +169,10 @@ export function useGenerate(config: WorkflowConfig) {
       try {
         const hist = await api.getHistory(20)
         const job = pickRestoreJob(hist.jobs)
-        if (!job) return
+        if (!job) {
+          applySampleDefaults()
+          return
+        }
 
         const img = jobImageName(job)
         const vid = jobVideoName(job)
@@ -165,10 +203,12 @@ export function useGenerate(config: WorkflowConfig) {
           setMessage(`已恢复上次生成：${completed.prompt_id}`)
         }
       } catch {
-        // keep sample defaults
+        applySampleDefaults()
+      } finally {
+        historyCheckedRef.current = true
       }
     })()
-  }, [])
+  }, [applySampleDefaults, config])
 
   const resetDefaults = useCallback(() => {
     setWidth(config.defaults.width)
@@ -176,29 +216,47 @@ export function useGenerate(config: WorkflowConfig) {
     setSeconds(config.defaults.seconds)
   }, [config])
 
-  const setImage = useCallback((file: File | null) => {
-    setImageFile(file)
-    if (file) {
-      setImagePreview(URL.createObjectURL(file))
-      setImageSource('upload')
-    } else {
-      setImagePreview(sampleImageUrl(config))
-      setImageName(DEFAULT_IMAGE)
-      setImageSource('sample')
-    }
-  }, [config])
+  const setImage = useCallback(
+    (file: File | null) => {
+      setImageFile(file)
+      if (file) {
+        setImagePreview(URL.createObjectURL(file))
+        setImageSource('upload')
+      } else {
+        const names = sampleNamesFromConfig(config)
+        setImagePreview(sampleImageUrl(config))
+        setImageName(names.image)
+        setImageSource('sample')
+      }
+    },
+    [config],
+  )
 
-  const setVideo = useCallback((file: File | null) => {
-    setVideoFile(file)
-    if (file) {
-      setVideoPreview(URL.createObjectURL(file))
-      setVideoSource('upload')
-    } else {
-      setVideoPreview(sampleVideoUrl(config))
-      setVideoName(DEFAULT_VIDEO)
-      setVideoSource('sample')
+  const setVideo = useCallback(
+    (file: File | null) => {
+      setVideoFile(file)
+      if (file) {
+        setVideoPreview(URL.createObjectURL(file))
+        setVideoSource('upload')
+      } else {
+        const names = sampleNamesFromConfig(config)
+        setVideoPreview(sampleVideoUrl(config))
+        setVideoName(names.video)
+        setVideoSource('sample')
+      }
+    },
+    [config],
+  )
+
+  const flushDiagnosticLog = useCallback(async (pid: string | null) => {
+    if (!pid) return
+    try {
+      const entries = takeDiagnosticLog()
+      await api.postDiagnosticLog(pid, entries)
+    } catch {
+      // diagnostic logging must not break UX
     }
-  }, [config])
+  }, [takeDiagnosticLog])
 
   const stopGeneration = useCallback(async () => {
     abortRef.current = true
@@ -207,48 +265,56 @@ export function useGenerate(config: WorkflowConfig) {
     } catch {
       // ignore
     }
+    await flushDiagnosticLog(promptId)
     disconnect()
     setPreviewState('idle')
     setMessage('已停止生成')
-  }, [disconnect])
+  }, [disconnect, flushDiagnosticLog, promptId])
 
-  const pollResult = useCallback(async (pid: string, startMs: number, clipSeconds: number) => {
-    const timeoutMs = pollTimeoutMs(clipSeconds)
-    let delayMs = 5_000
-    let finished = false
-  loop:
-    while (!abortRef.current && Date.now() - startMs < timeoutMs) {
-      await new Promise((r) => setTimeout(r, delayMs))
-      if (abortRef.current) break
-      delayMs = 3000
-      try {
-        const res = await api.getResult(pid)
-        if (applyResult(res, startMs, setPreviewState, setMessage, setVideoUrl, setFinalElapsed)) {
+  const pollResult = useCallback(
+    async (pid: string, startMs: number, clipSeconds: number) => {
+      const timeoutMs = pollTimeoutMs(clipSeconds)
+      let delayMs = 5_000
+      let finished = false
+    loop:
+      while (!abortRef.current && Date.now() - startMs < timeoutMs) {
+        await new Promise((r) => setTimeout(r, delayMs))
+        if (abortRef.current) break
+        delayMs = 3000
+        try {
+          const res = await api.getResult(pid)
+          if (applyResult(res, startMs, setPreviewState, setMessage, setVideoUrl, setFinalElapsed)) {
+            finished = true
+            break loop
+          }
+        } catch (err) {
+          setPreviewState('error')
+          setMessage(`❌ ${err instanceof Error ? err.message : String(err)}`)
           finished = true
           break loop
         }
-      } catch (err) {
-        setPreviewState('error')
-        setMessage(`❌ ${err instanceof Error ? err.message : String(err)}`)
-        finished = true
-        break loop
       }
-    }
-    if (!finished && !abortRef.current) {
-      try {
-        const res = await api.getResult(pid)
-        if (applyResult(res, startMs, setPreviewState, setMessage, setVideoUrl, setFinalElapsed)) {
-          disconnect()
-          return
+      if (!finished && !abortRef.current) {
+        try {
+          const res = await api.getResult(pid)
+          if (applyResult(res, startMs, setPreviewState, setMessage, setVideoUrl, setFinalElapsed)) {
+            await flushDiagnosticLog(pid)
+            disconnect()
+            return
+          }
+        } catch {
+          // fall through to timeout message
         }
-      } catch {
-        // fall through to timeout message
+        setPreviewState('error')
+        setMessage(
+          `❌ 轮询超时（已等待 ${Math.floor((Date.now() - startMs) / 60000)} 分钟）。任务可能仍在后台运行，请点击「历史记录」查看。`,
+        )
       }
-      setPreviewState('error')
-      setMessage(`❌ 轮询超时（已等待 ${Math.floor((Date.now() - startMs) / 60000)} 分钟）。任务可能仍在后台运行，请点击「历史记录」查看。`)
-    }
-    disconnect()
-  }, [disconnect])
+      await flushDiagnosticLog(pid)
+      disconnect()
+    },
+    [disconnect, flushDiagnosticLog],
+  )
 
   const generate = useCallback(async () => {
     abortRef.current = false
@@ -258,6 +324,7 @@ export function useGenerate(config: WorkflowConfig) {
     setPreviewState('generating')
     const startMs = Date.now()
     const clientId = randomClientId()
+    let activePromptId: string | null = null
 
     try {
       let img = imageName
@@ -273,6 +340,10 @@ export function useGenerate(config: WorkflowConfig) {
         setVideoName(vid)
       }
 
+      const validated = await api.validateInput(img, vid)
+      img = validated.image
+      vid = validated.video
+
       const frames = Math.round(config.fps * seconds)
       const safeWidth = normalizeDimension(width, config.defaults.width || SAFE_WIDTH)
       const safeHeight = normalizeDimension(height, config.defaults.height || SAFE_HEIGHT)
@@ -284,6 +355,9 @@ export function useGenerate(config: WorkflowConfig) {
         setHeight(SAFE_HEIGHT)
         setMessage('检测节点当前仅稳定支持 468 x 832，已自动恢复为默认尺寸后提交。')
       }
+
+      await prepareConnection(clientId)
+
       const gen = await api.generate({
         client_id: clientId,
         workflow_variant: workflowVariant,
@@ -296,22 +370,28 @@ export function useGenerate(config: WorkflowConfig) {
           '1003:value': frames,
         },
       })
+      activePromptId = gen.prompt_id
       setPromptId(gen.prompt_id)
-      connect(clientId, gen.prompt_snapshot, gen.prompt_id)
-      setMessage(`任务已提交：${gen.prompt_id}`)
+      bindPrompt(gen.prompt_id, gen.prompt_snapshot)
+      setMessage(`任务已提交：${gen.prompt_id}（图像 ${img} · 视频 ${vid}）`)
       await pollResult(gen.prompt_id, startMs, seconds)
     } catch (err) {
       setPreviewState('error')
       setMessage(`❌ ${err instanceof Error ? err.message : String(err)}`)
+      await flushDiagnosticLog(activePromptId)
       disconnect()
     }
   }, [
+    bindPrompt,
     config.fps,
-    connect,
+    config.defaults.height,
+    config.defaults.width,
     disconnect,
+    flushDiagnosticLog,
     imageFile,
     imageName,
     pollResult,
+    prepareConnection,
     reset,
     seconds,
     videoFile,
@@ -348,6 +428,9 @@ export function useGenerate(config: WorkflowConfig) {
     }
   }, [promptId])
 
+  const submitImageName = imageFile?.name ?? imageName
+  const submitVideoName = videoFile?.name ?? videoName
+
   return {
     width,
     height,
@@ -362,6 +445,8 @@ export function useGenerate(config: WorkflowConfig) {
     videoPreview,
     imageSource,
     videoSource,
+    submitImageName,
+    submitVideoName,
     workflowVariant,
     tunables,
     selectWorkflowVariant,

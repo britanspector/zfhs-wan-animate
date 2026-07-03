@@ -19,6 +19,8 @@ wan-animate-web/dist/
 
 # API runtime data
 wan-animate-api/data/jobs.json
+wan-animate-api/data/diagnostic_logs/
+wan-animate-api/data/generation_logs/
 
 # Docker volumes (models ~33GB)
 docker/volumes/models/*

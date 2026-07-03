@@ -136,7 +136,7 @@
   },
   "57": {
     "inputs": {
-      "image": "pasted/image (17).png"
+      "image": "C罗.jpg"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -621,7 +621,7 @@
   },
   "997": {
     "inputs": {
-      "video": "5053929f1d2c2ef117a3a8b8c02075c7da53e5380365bc2f8a87992986058e39.mp4",
+      "video": "世界杯手势舞.mp4",
       "force_rate": [
         "1004",
         0

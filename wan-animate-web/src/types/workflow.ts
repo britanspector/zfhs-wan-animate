@@ -56,6 +56,7 @@ export interface ProgressState {
   executedNodes: number
   totalNodes: number
   elapsedSeconds: number
+  progressHint?: string
 }
 
 export const TUNABLE_GROUP_LABELS: Record<TunableGroup, string> = {

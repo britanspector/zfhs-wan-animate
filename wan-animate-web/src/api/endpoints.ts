@@ -11,6 +11,8 @@ export const endpoints = {
   comfyView: `${API_BASE}/api/comfy/view`,
   workflowConfig: (id: string) => `${API_BASE}/api/workflow/config/${encodeURIComponent(id)}`,
   workflowGenerate: `${API_BASE}/api/workflow/generate`,
+  workflowValidateInput: `${API_BASE}/api/workflow/validate-input`,
+  workflowDiagnosticLog: `${API_BASE}/api/workflow/diagnostic-log`,
   workflowResult: `${API_BASE}/api/workflow/result`,
   workflowHistory: `${API_BASE}/api/workflow/history`,
   wsProxy: (clientId: string) => {

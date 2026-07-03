@@ -20,9 +20,11 @@ from config import load_settings  # noqa: E402
 from routes import comfy, health, system, workflow, ws  # noqa: E402
 from services.comfy_manager import ComfyManager  # noqa: E402
 from services.job_store import JobStore  # noqa: E402
+from services.progress_diagnostic import ProgressDiagnosticService  # noqa: E402
 from services.workflow_service import WorkflowService  # noqa: E402
 
 settings = load_settings()
+data_dir = Path(settings["jobs_path"]).parent
 
 app = FastAPI(title="wan-animate-api", version="0.3.0")
 app.add_middleware(
@@ -40,7 +42,11 @@ app.state.comfy_manager = ComfyManager(
     start_script=settings.get("comfy_start_script", ""),
     stop_port=int(settings.get("comfy_stop_port", 6006)),
 )
-app.state.workflow_service = WorkflowService(settings, app.state.job_store)
+app.state.workflow_service = WorkflowService(
+    settings,
+    app.state.job_store,
+    ProgressDiagnosticService(data_dir, settings["comfy_url"]),
+)
 
 app.include_router(health.router)
 app.include_router(system.router)

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { buildViewUrl } from '../api/endpoints'
+import { SAMPLE_IMAGE, SAMPLE_VIDEO } from '../constants/samples'
 import type { WorkflowConfig } from '../types/workflow'
 import { defaultTunablesForVariant } from '../types/workflow'
 
@@ -35,7 +36,8 @@ const FALLBACK: WorkflowConfig = {
     { label: '30 秒内', seconds: 30, frames: 900 },
   ],
   samples: {
-    image_preview_url: buildViewUrl('image (17).png', 'input'),
+    image_preview_url: buildViewUrl(SAMPLE_IMAGE, 'input'),
+    video_preview_url: buildViewUrl(SAMPLE_VIDEO, 'input'),
   },
 }
 
@@ -47,7 +49,8 @@ export function useWorkflowConfig() {
     api
       .getWorkflowConfig()
       .then((c) => {
-        const videoName = c.samples.video?.split('/').pop() ?? '5053929f1d2c2ef117a3a8b8c02075c7da53e5380365bc2f8a87992986058e39.mp4'
+        const imageName = c.samples.image?.split('/').pop() ?? SAMPLE_IMAGE
+        const videoName = c.samples.video?.split('/').pop() ?? SAMPLE_VIDEO
         const merged: WorkflowConfig = {
           ...FALLBACK,
           ...c,
@@ -55,8 +58,8 @@ export function useWorkflowConfig() {
           tunables: c.tunables?.length ? c.tunables : FALLBACK.tunables,
           samples: {
             ...c.samples,
-            image_preview_url: c.samples.image_preview_url ?? buildViewUrl('image (17).png', 'input'),
-            video_preview_url: buildViewUrl(videoName, 'input'),
+            image_preview_url: c.samples.image_preview_url ?? buildViewUrl(imageName, 'input'),
+            video_preview_url: c.samples.video_preview_url ?? buildViewUrl(videoName, 'input'),
           },
         }
         for (const v of merged.variants) {

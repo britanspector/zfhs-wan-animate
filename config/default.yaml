@@ -125,5 +125,5 @@ autodl:
   gateway_public_env: AutoDLService6008URL
 workflow_id: "P07-动作迁移-Wan2.2AnimateV4"
 samples:
-  image: "/app/ComfyUI/input/image (17).png"
-  video: "/app/ComfyUI/input/5053929f1d2c2ef117a3a8b8c02075c7da53e5380365bc2f8a87992986058e39.mp4"
+  image: "/app/ComfyUI/input/C罗.jpg"
+  video: "/app/ComfyUI/input/世界杯手势舞.mp4"

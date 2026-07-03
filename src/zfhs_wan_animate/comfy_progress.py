@@ -46,6 +46,7 @@ class ComfyProgressTracker:
         client_id: str,
         prompt_id: str,
         prompt_snapshot: dict[str, Any],
+        on_raw_message: Callable[[str, dict[str, Any]], None] | None = None,
     ) -> None:
         self.comfy_url = comfy_url
         self.client_id = client_id
@@ -59,6 +60,7 @@ class ComfyProgressTracker:
         self._thread: threading.Thread | None = None
         self._start = time.monotonic()
         self._callbacks: list[Callable[[ProgressState], None]] = []
+        self._on_raw_message = on_raw_message
 
     def on_progress(self, callback: Callable[[ProgressState], None]) -> None:
         self._callbacks.append(callback)
@@ -83,6 +85,11 @@ class ComfyProgressTracker:
             return
         msg_type = msg.get("type")
         data = msg.get("data") or {}
+        if self._on_raw_message and msg_type:
+            try:
+                self._on_raw_message(str(msg_type), dict(data))
+            except Exception:
+                pass
         if msg_type == "execution_start":
             self._executed.clear()
             return

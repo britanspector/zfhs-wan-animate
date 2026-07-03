@@ -122,12 +122,20 @@ def main() -> int:
         errors.append("ffmpeg/ffprobe not available (audio fallback disabled)")
 
     if not args.quick:
-        sample_video = cfg.get("samples", {}).get("video")
+        samples = cfg.get("samples", {})
+        sample_image = samples.get("image")
+        sample_video = samples.get("video")
+        if sample_image and Path(sample_image).is_file():
+            ok.append(f"sample image: {sample_image}")
+        else:
+            warnings.append(f"sample image missing: {sample_image}")
         if sample_video and Path(sample_video).is_file():
             if has_audio_stream(Path(sample_video)):
                 ok.append(f"sample video has audio: {sample_video}")
             else:
                 warnings.append(f"sample video has no audio track: {sample_video}")
+        else:
+            warnings.append(f"sample video missing: {sample_video}")
 
     print(f"=== zfhs-wan-animate verify ({len(ok)} ok, {len(warnings)} warn, {len(errors)} errors) ===\n")
     for line in ok:

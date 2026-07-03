@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +22,11 @@ from public_urls import (
     resolve_public_base_url,
 )
 
+from .generation_log import build_generation_log, persist_generation_log
 from .job_store import JobStore
+from .progress_diagnostic import ProgressDiagnosticService
+
+logger = logging.getLogger("wan_animate.workflow")
 
 
 def _project_root(settings: dict[str, Any]) -> Path:
@@ -52,11 +57,28 @@ def _variant_file(settings: dict[str, Any], variant: str) -> Path:
     return path if path.is_absolute() else root / path
 
 
+def _input_dir(settings: dict[str, Any]) -> Path:
+    return Path(settings["comfy_root"]) / "input"
+
+
+def _resolve_basename(name: str) -> str:
+    return Path(name).name
+
+
 class WorkflowService:
-    def __init__(self, settings: dict[str, Any], job_store: JobStore):
+    def __init__(
+        self,
+        settings: dict[str, Any],
+        job_store: JobStore,
+        progress_diagnostic: ProgressDiagnosticService | None = None,
+    ):
         self.settings = settings
         self.job_store = job_store
         self.cfg = load_config(settings["_project_root"] / "config" / "default.yaml")
+        data_dir = Path(settings["jobs_path"]).parent
+        self.progress_diagnostic = progress_diagnostic or ProgressDiagnosticService(
+            data_dir, settings["comfy_url"]
+        )
 
     def list_workflows(self) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
@@ -136,6 +158,19 @@ class WorkflowService:
             },
         }
 
+    def validate_input(self, image: str, video: str) -> dict[str, Any]:
+        image_base = _resolve_basename(image)
+        video_base = _resolve_basename(video)
+        input_dir = _input_dir(self.settings)
+        missing: list[str] = []
+        if not (input_dir / image_base).is_file():
+            missing.append(f"角色参考图不存在：{image_base}")
+        if not (input_dir / video_base).is_file():
+            missing.append(f"动作参考视频不存在：{video_base}")
+        if missing:
+            raise ValueError("；".join(missing))
+        return {"ok": True, "image": image_base, "video": video_base}
+
     def generate(
         self,
         *,
@@ -163,14 +198,29 @@ class WorkflowService:
             merged_input.update(tunables)
 
         parsed = _parse_input_values(merged_input)
-        image = image_name or parsed.get("image")
-        video = video_name or parsed.get("video")
+        image = _resolve_basename(image_name or parsed.get("image") or "")
+        video = _resolve_basename(video_name or parsed.get("video") or "")
         w = width if width is not None else parsed.get("width", rt["width"])
         h = height if height is not None else parsed.get("height", rt["height"])
         sec = seconds if seconds is not None else parsed.get("seconds", rt["seconds"])
 
         if workflow_template is None and (not image or not video):
             raise ValueError("57:image and 997:video are required in input_values")
+
+        if workflow_template is None:
+            validated = self.validate_input(image, video)
+            image = validated["image"]
+            video = validated["video"]
+            merged_input["57:image"] = image
+            merged_input["997:video"] = video
+
+        logger.info(
+            "generate submit variant=%s client_id=%s image=%s video=%s",
+            variant,
+            client_id,
+            image,
+            video,
+        )
 
         submit = submit_p07(
             image_name=image or "",
@@ -200,6 +250,18 @@ class WorkflowService:
             tunables=tunables or {},
             prompt_snapshot=submit.prompt,
         )
+
+        self.progress_diagnostic.start(
+            prompt_id=submit.prompt_id,
+            client_id=submit.client_id,
+            prompt_snapshot=submit.prompt,
+            meta={
+                "workflow_variant": variant,
+                "image": image,
+                "video": video,
+            },
+        )
+
         return {
             "success": True,
             "prompt_id": submit.prompt_id,
@@ -207,7 +269,12 @@ class WorkflowService:
             "workflow_variant": variant,
             "number": 1,
             "prompt_snapshot": submit.prompt,
+            "resolved_image": image,
+            "resolved_video": video,
         }
+
+    def append_diagnostic_frontend(self, prompt_id: str, entries: list[dict[str, Any]]) -> None:
+        self.progress_diagnostic.append_frontend(prompt_id, entries)
 
     def result(self, prompt_id: str, request: Any | None = None) -> dict[str, Any]:
         job = self.job_store.get(prompt_id)
@@ -222,6 +289,7 @@ class WorkflowService:
 
         if polled.error:
             self.job_store.update(prompt_id, status="failed", error=polled.error)
+            self.progress_diagnostic.finish(prompt_id, status="failed", extra={"error": polled.error})
             return {
                 "success": True,
                 "pending": False,
@@ -239,8 +307,24 @@ class WorkflowService:
                 "results": [],
             }
 
-        results = [_output_to_result(out, public_base) for out in polled.outputs]
-        self.job_store.update(prompt_id, status="completed", results=results)
+        results = [
+            _output_to_result(out, public_base, comfy_root=Path(self.settings["comfy_root"]))
+            for out in polled.outputs
+        ]
+        updated_job = self.job_store.update(prompt_id, status="completed", results=results)
+        self.progress_diagnostic.finish(prompt_id, status="completed")
+
+        if updated_job:
+            gen_log = build_generation_log(
+                job=updated_job,
+                settings=self.settings,
+                results=results,
+                public_base=public_base,
+            )
+            data_dir = Path(self.settings["jobs_path"]).parent
+            persist_generation_log(data_dir, prompt_id, gen_log)
+            self.job_store.update(prompt_id, generation_log=gen_log)
+
         return {
             "success": True,
             "pending": False,
@@ -252,7 +336,9 @@ class WorkflowService:
         interrupt_comfy(config=self.cfg)
         for job in self.job_store.list_recent(20):
             if job.get("status") in {"queued", "running"}:
-                self.job_store.update(job["prompt_id"], status="interrupted")
+                pid = job["prompt_id"]
+                self.job_store.update(pid, status="interrupted")
+                self.progress_diagnostic.finish(pid, status="interrupted")
         return {"success": True}
 
     def history(self, limit: int = 50, request: Any | None = None) -> list[dict[str, Any]]:
@@ -292,11 +378,20 @@ def _parse_input_values(input_values: dict[str, object]) -> dict[str, Any]:
     return out
 
 
-def _output_to_result(out: ComfyOutput, public_base: str) -> dict[str, Any]:
-    return {
+def _output_to_result(
+    out: ComfyOutput,
+    public_base: str,
+    *,
+    comfy_root: Path,
+) -> dict[str, Any]:
+    result = {
         "type": "video",
         "filename": out.filename,
         "subfolder": out.subfolder,
         "url": out.output_url(public_base),
         "view_url": build_api_view_path_url(public_base, out.filename, "output", out.subfolder),
     }
+    file_path = comfy_root / "output" / (out.subfolder or "") / out.filename
+    if file_path.is_file():
+        result["size_bytes"] = file_path.stat().st_size
+    return result

@@ -43,6 +43,18 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workflow_id: WORKFLOW_ID, ...body }),
     }),
+  validateInput: (image: string, video: string) =>
+    request<{ ok: boolean; image: string; video: string }>(endpoints.workflowValidateInput, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image, video }),
+    }),
+  postDiagnosticLog: (promptId: string, entries: Array<Record<string, unknown>>) =>
+    request<{ success: boolean }>(endpoints.workflowDiagnosticLog, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt_id: promptId, entries }),
+    }),
   getResult: (promptId: string) =>
     request<WorkflowResult>(`${endpoints.workflowResult}?prompt_id=${encodeURIComponent(promptId)}`),
   getHistory: (limit = 20) =>

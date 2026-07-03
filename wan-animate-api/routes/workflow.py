@@ -19,6 +19,16 @@ class GenerateBody(BaseModel):
     client_id: str | None = None
 
 
+class ValidateInputBody(BaseModel):
+    image: str
+    video: str
+
+
+class DiagnosticLogBody(BaseModel):
+    prompt_id: str
+    entries: list[dict[str, Any]]
+
+
 @router.get("/api/workflow/list")
 def workflow_list(request: Request) -> list[dict[str, Any]]:
     return request.app.state.workflow_service.list_workflows()
@@ -30,6 +40,20 @@ def workflow_config(workflow_id: str, request: Request) -> dict[str, Any]:
         return request.app.state.workflow_service.get_config(workflow_id, request=request)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/api/workflow/validate-input")
+def workflow_validate_input(body: ValidateInputBody, request: Request) -> dict[str, Any]:
+    try:
+        return request.app.state.workflow_service.validate_input(body.image, body.video)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/api/workflow/diagnostic-log")
+def workflow_diagnostic_log(body: DiagnosticLogBody, request: Request) -> dict[str, Any]:
+    request.app.state.workflow_service.append_diagnostic_frontend(body.prompt_id, body.entries)
+    return {"success": True}
 
 
 @router.post("/api/workflow/generate")

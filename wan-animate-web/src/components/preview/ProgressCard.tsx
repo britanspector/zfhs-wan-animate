@@ -15,6 +15,12 @@ export function ProgressCard({ progress }: { progress: ProgressState }) {
       {progress.currentNodeName && (
         <p className="text-xs text-morandi-muted">{progress.currentNodeName}</p>
       )}
+      {progress.progressHint && (
+        <p className="text-xs text-amber-700/80">{progress.progressHint}</p>
+      )}
+      {progress.progressHint && (
+        <p className="text-xs text-amber-700/80">{progress.progressHint}</p>
+      )}
       <div className="w-full max-w-md space-y-3">
         <div>
           <div className="mb-1 flex justify-between text-xs text-morandi-muted">

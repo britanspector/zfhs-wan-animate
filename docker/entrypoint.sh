@@ -19,7 +19,9 @@ export WAN_ANIMATE_JOBS_PATH="${JOBS_PATH}"
 export PYTHONPATH="${APP_DIR}/src:${APP_DIR}/wan-animate-api:${PYTHONPATH:-}"
 
 mkdir -p "${DATA_DIR}" "${COMFY_ROOT}/input" "${COMFY_ROOT}/output" "${COMFY_ROOT}/models"
-touch "${JOBS_PATH}" 2>/dev/null || true
+if [[ ! -s "${JOBS_PATH}" ]]; then
+  echo '{"jobs": []}' > "${JOBS_PATH}"
+fi
 
 resolve_ld() {
   local cache="/tmp/.comfyui-ld-cache"
