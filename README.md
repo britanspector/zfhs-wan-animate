@@ -143,9 +143,14 @@ cd wan-animate-web && npm install && npm run dev
 | `WAN_ANIMATE_API_PORT` | API 端口（默认 6020） |
 | `WAN_ANIMATE_DATA_DIR` | 任务历史目录（Docker 默认 `/app/data`） |
 | `COMFY_START_SCRIPT` | 启动 ComfyUI 脚本（默认使用 `scripts/start-comfyui.sh`） |
-| `ZFHS_MODEL_SOURCES` | 模型缓存映射表（默认 `manifest/model_sources.autodl.yaml`） |
+| `ZFHS_MODELS_STORE` | 模型实体存储目录（默认 `/autodl-fs/data/zfhs-wan-animate/models`，AutoDL 挂载点下） |
+| `HF_HOME` | HuggingFace 缓存（默认与 `ZFHS_MODELS_STORE` 同级的 `.cache/huggingface`） |
+| `MODELSCOPE_CACHE` | ModelScope 缓存（默认与 `ZFHS_MODELS_STORE` 同级的 `.cache/modelscope`） |
+| `HF_TOKEN` | 可选；有则可访问 gated 的 zealman/nahz202 等 HF 仓库 |
+| `SKIP_NETWORK_TURBO` | 设为 `1` 时不自动 `source /etc/network_turbo`（AutoDL） |
+| `ZFHS_MODEL_SOURCES` | （已废弃）原模型映射表，现由 `ZFHS_MODELS_STORE` + `models.yaml` 派生 |
 
-AutoDL 裸机：复制 `config/local.yaml.example` → `config/local.yaml`；首次运行 `bash scripts/setup_models.sh`。
+AutoDL 裸机：复制 `config/local.yaml.example` → `config/local.yaml`；首次运行 `bash scripts/download_models.sh` 下载模型（HF 优先，失败自动回退 ModelScope/公开 HF 备用源，成功后清理 autodl-fs 缓存）并建立软链。
 
 ## P4 Docker（瘦镜像）
 
@@ -155,7 +160,9 @@ AutoDL 裸机：复制 `config/local.yaml.example` → `config/local.yaml`；首
 - [docs/ASSETS_MIGRATION.md](docs/ASSETS_MIGRATION.md) — 模型/节点移植清单（`scripts/inventory_assets.py --write` 可刷新）
 
 ```bash
-bash scripts/setup_models.sh           # 链接 P07 模型（AutoDL 缓存）
+bash scripts/download_models.sh        # 多源下载到 autodl-fs、清缓存、软链、验收
+bash scripts/download_models.sh --dry-run   # 检查下载计划
+bash scripts/setup_models.sh           # 换实例后仅刷新软链
 bash scripts/prepare_docker_build.sh   # 复制 custom nodes
 bash scripts/prepare_docker_volumes.sh # 软链模型卷
 bash scripts/validate_docker_setup.sh  # 离线校验（无需 docker 守护进程）

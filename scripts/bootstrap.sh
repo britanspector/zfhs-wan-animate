@@ -12,8 +12,11 @@ if [[ ! -f config/local.yaml ]]; then
   cp config/local.yaml.example config/local.yaml
 fi
 
-log "Linking P07 models from AutoDL platform cache..."
-bash scripts/setup_models.sh --strict
+log "Linking P07 models from autodl-fs local storage..."
+if ! bash scripts/setup_models.sh --strict; then
+  log "Model entities missing in autodl-fs. Run: bash scripts/download_models.sh"
+  exit 1
+fi
 
 log "Checking / installing custom nodes..."
 bash scripts/install_custom_nodes.sh --install-missing

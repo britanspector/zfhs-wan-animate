@@ -94,7 +94,7 @@ def main() -> int:
             elif args.strict_models:
                 errors.append(f"model missing: {full}")
             else:
-                warnings.append(f"model missing (mount required): {full}")
+                warnings.append(f"model missing (run: bash scripts/download_models.sh): {full}")
 
         nodes_manifest = ROOT / "manifest" / "custom_nodes.yaml"
         with nodes_manifest.open(encoding="utf-8") as f:
