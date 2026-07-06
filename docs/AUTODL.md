@@ -66,6 +66,15 @@ curl http://127.0.0.1:6008/api/external-url-6006
 curl http://127.0.0.1:6008/api/external-url-6008
 ```
 
+## 后台预热
+
+服务栈 HTTP 就绪后，`scripts/run-warmup.sh` 会在后台提交一次 10 秒短任务，加载文本编码器、姿态检测 ONNX 与 Wan 采样模型，到达关键节点后自动 `interrupt`，**不阻塞**公网入口可用。
+
+- 日志：`.run/warmup.log`
+- 状态：`wan-animate-api/data/.warmup_state.json`（与 ComfyUI PID 绑定，同进程不重复预热）
+- 禁用：`SKIP_WARMUP=1`
+- 手动：`bash scripts/run-warmup.sh` 或 `python scripts/warmup_comfy.py --dry-run`
+
 ## 停止服务
 
 ```bash
@@ -82,6 +91,7 @@ bash scripts/start-wan-animate.sh --stop
 | `.run/api.log` | Web API |
 | `.run/jupyter.log` | Jupyter |
 | `.run/nginx-error.log` | nginx 网关 |
+| `.run/warmup.log` | 后台模型预热（实例启动后自动） |
 | `/tmp/zfhs-wan-animate-autostart.log` | 开机自启 |
 | `/tmp/zfhs-wan-animate-daemon.log` | 守护进程 |
 
@@ -93,6 +103,7 @@ bash scripts/start-wan-animate.sh --stop
 | Jupyter 403 / 无法打开 | 公网 URL 必须带 `?token=`，见 `curl http://127.0.0.1:6008/api/services` |
 | Jupyter 404 | 确认 `jupyter` 在 8888 且 `base_url=/jupyter/`；设 `JUPYTER_FORCE_RESTART=1` 重启 |
 | ComfyUI 启动慢 | 首次加载模型需 1–2 分钟，守护进程会自动重试 |
+| 首跑生成偏慢 | 实例启动后会在后台自动预热（约 3–4 分钟），日志见 `.run/warmup.log`；设 `SKIP_WARMUP=1` 可禁用 |
 | nginx 未安装 | `start-nginx-gateway.sh` 会尝试 `apt-get install nginx` |
 | 公网 URL 为空 | 在 AutoDL 控制台「自定义服务」复制地址；或 `source /etc/profile.d/autodl.env.sh` |
 

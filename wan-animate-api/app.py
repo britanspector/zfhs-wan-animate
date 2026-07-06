@@ -17,7 +17,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 sys.path.insert(0, str(API_DIR))
 
 from config import load_settings  # noqa: E402
-from routes import comfy, health, system, workflow, ws  # noqa: E402
+from routes import comfy, health, system, warmup, workflow, ws  # noqa: E402
 from services.comfy_manager import ComfyManager  # noqa: E402
 from services.job_store import JobStore  # noqa: E402
 from services.progress_diagnostic import ProgressDiagnosticService  # noqa: E402
@@ -42,15 +42,21 @@ app.state.comfy_manager = ComfyManager(
     start_script=settings.get("comfy_start_script", ""),
     stop_port=int(settings.get("comfy_stop_port", 6006)),
 )
+app.state.progress_diagnostic = ProgressDiagnosticService(
+    data_dir,
+    settings["comfy_url"],
+    app.state.job_store,
+)
 app.state.workflow_service = WorkflowService(
     settings,
     app.state.job_store,
-    ProgressDiagnosticService(data_dir, settings["comfy_url"]),
+    app.state.progress_diagnostic,
 )
 
 app.include_router(health.router)
 app.include_router(system.router)
 app.include_router(comfy.router)
+app.include_router(warmup.router)
 app.include_router(workflow.router)
 app.include_router(ws.router)
 

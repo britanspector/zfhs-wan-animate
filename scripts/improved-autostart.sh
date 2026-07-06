@@ -34,6 +34,7 @@ fi
 
 if [ "$gateway_ok" = true ] && [ "$comfy_ok" = true ]; then
     log "服务栈已在运行（6006 + 6008）"
+    bash "$ROOT/scripts/run-warmup.sh" >> "$LOG_FILE" 2>&1 || true
     exit 0
 fi
 

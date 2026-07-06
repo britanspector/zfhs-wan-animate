@@ -6,9 +6,10 @@ import json
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from zfhs_wan_animate.comfy_progress import ComfyProgressTracker
+if TYPE_CHECKING:
+    from .job_store import JobStore
 
 
 def _now_iso() -> str:
@@ -16,10 +17,16 @@ def _now_iso() -> str:
 
 
 class ProgressDiagnosticService:
-    def __init__(self, data_dir: Path, comfy_url: str) -> None:
+    def __init__(
+        self,
+        data_dir: Path,
+        comfy_url: str,
+        job_store: JobStore | None = None,
+    ) -> None:
         self.data_dir = Path(data_dir)
         self.comfy_url = comfy_url
-        self._trackers: dict[str, ComfyProgressTracker] = {}
+        self.job_store = job_store
+        self._client_prompt: dict[str, str] = {}
         self._lock = threading.Lock()
 
     def _run_dir(self, prompt_id: str) -> Path:
@@ -31,6 +38,20 @@ class ProgressDiagnosticService:
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
+    def _resolve_prompt_id(self, client_id: str) -> str | None:
+        with self._lock:
+            prompt_id = self._client_prompt.get(client_id)
+        if prompt_id:
+            return prompt_id
+        if not self.job_store:
+            return None
+        for job in self.job_store.list_recent(20):
+            if job.get("client_id") != client_id:
+                continue
+            if job.get("status") in {"queued", "running"}:
+                return str(job["prompt_id"])
+        return None
+
     def start(
         self,
         *,
@@ -39,6 +60,7 @@ class ProgressDiagnosticService:
         prompt_snapshot: dict[str, Any],
         meta: dict[str, Any] | None = None,
     ) -> None:
+        del prompt_snapshot  # kept for API compatibility
         run_dir = self._run_dir(prompt_id)
         run_dir.mkdir(parents=True, exist_ok=True)
         meta_path = run_dir / "meta.json"
@@ -50,30 +72,37 @@ class ProgressDiagnosticService:
             **(meta or {}),
         }
         meta_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-
-        backend_log = run_dir / "backend.jsonl"
-
-        def _on_raw(msg_type: str, data: dict[str, Any]) -> None:
-            self._append_jsonl(
-                backend_log,
-                {
-                    "ts": _now_iso(),
-                    "source": "comfy_ws",
-                    "type": msg_type,
-                    "data": data,
-                },
-            )
-
-        tracker = ComfyProgressTracker(
-            self.comfy_url,
-            client_id,
-            prompt_id,
-            prompt_snapshot,
-            on_raw_message=_on_raw,
-        )
-        tracker.start()
         with self._lock:
-            self._trackers[prompt_id] = tracker
+            self._client_prompt[client_id] = prompt_id
+
+    def log_backend_event(self, client_id: str, message: str | bytes) -> None:
+        if isinstance(message, bytes):
+            return
+        try:
+            parsed = json.loads(message)
+        except json.JSONDecodeError:
+            return
+        msg_type = parsed.get("type")
+        if not msg_type:
+            return
+        data = parsed.get("data") or {}
+        if not isinstance(data, dict):
+            data = {}
+
+        prompt_id = self._resolve_prompt_id(client_id)
+        if not prompt_id:
+            return
+
+        backend_log = self._run_dir(prompt_id) / "backend.jsonl"
+        self._append_jsonl(
+            backend_log,
+            {
+                "ts": _now_iso(),
+                "source": "comfy_ws",
+                "type": msg_type,
+                "data": data,
+            },
+        )
 
     def append_frontend(self, prompt_id: str, entries: list[dict[str, Any]]) -> None:
         if not entries:
@@ -92,9 +121,9 @@ class ProgressDiagnosticService:
 
     def finish(self, prompt_id: str, *, status: str, extra: dict[str, Any] | None = None) -> None:
         with self._lock:
-            tracker = self._trackers.pop(prompt_id, None)
-        if tracker:
-            tracker.stop()
+            to_remove = [cid for cid, pid in self._client_prompt.items() if pid == prompt_id]
+            for client_id in to_remove:
+                del self._client_prompt[client_id]
 
         run_dir = self._run_dir(prompt_id)
         meta_path = run_dir / "meta.json"

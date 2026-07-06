@@ -57,12 +57,17 @@ def test_validate_input_missing(tmp_path: Path):
 
 
 def test_progress_diagnostic_writes_files(tmp_path: Path):
-    diag = ProgressDiagnosticService(tmp_path, "http://127.0.0.1:6006")
+    store = JobStore(tmp_path / "jobs.json")
+    diag = ProgressDiagnosticService(tmp_path, "http://127.0.0.1:6006", store)
     diag.start(
         prompt_id="pid-1",
         client_id="cid-1",
         prompt_snapshot={"1": {"class_type": "Test"}},
         meta={"image": "C罗.jpg"},
+    )
+    diag.log_backend_event(
+        "cid-1",
+        '{"type": "executing", "data": {"node": "1", "prompt_id": "pid-1"}}',
     )
     diag.append_frontend("pid-1", [{"event": "ws_open", "detail": {}}])
     diag.finish("pid-1", status="completed")
@@ -72,3 +77,17 @@ def test_progress_diagnostic_writes_files(tmp_path: Path):
     run_dir = run_dirs[0]
     assert (run_dir / "meta.json").is_file()
     assert (run_dir / "frontend.jsonl").is_file()
+    assert (run_dir / "backend.jsonl").is_file()
+    backend_lines = (run_dir / "backend.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    assert len(backend_lines) == 1
+    assert '"type": "executing"' in backend_lines[0]
+
+
+def test_progress_diagnostic_no_tracker_thread(tmp_path: Path):
+    diag = ProgressDiagnosticService(tmp_path, "http://127.0.0.1:6006")
+    diag.start(
+        prompt_id="pid-2",
+        client_id="cid-2",
+        prompt_snapshot={"1": {"class_type": "Test"}},
+    )
+    assert not hasattr(diag, "_trackers")

@@ -32,6 +32,7 @@ export function useComfyProgress() {
   const timerRef = useRef<number | null>(null)
   const startTimeRef = useRef<number>(0)
   const diagnosticRef = useRef<DiagnosticEntry[]>([])
+  const progressRef = useRef<ProgressState>(INITIAL)
   const reconnectUsedRef = useRef(false)
   const allowReconnectRef = useRef(false)
   const lastProgressAtRef = useRef<number>(0)
@@ -62,6 +63,7 @@ export function useComfyProgress() {
     allowReconnectRef.current = false
     lastProgressAtRef.current = 0
     diagnosticRef.current = []
+    progressRef.current = INITIAL
     setProgress(INITIAL)
   }, [])
 
@@ -90,10 +92,12 @@ export function useComfyProgress() {
           p.currentNodeName.includes('姿态') ||
           p.currentNodeName.includes('508')
         if (!isPose || p.nodeProgress > 0) return p
-        return {
+        const next = {
           ...p,
           progressHint: '姿态检测初始化中，首帧 ONNX 加载较慢，请稍候…',
         }
+        progressRef.current = next
+        return next
       })
     }, POSE_STALL_HINT_MS)
   }, [])
@@ -138,12 +142,61 @@ export function useComfyProgress() {
             const value = Number(msg.data.value ?? 0)
             const max = Number(msg.data.max ?? 1)
             const nodeProgress = max > 0 ? Math.min(100, (value / max) * 100) : 0
-            setProgress((p) => ({
-              ...p,
-              nodeProgress,
-              progressHint: '',
-              workflowProgress: updateOverall(executedRef.current.size, nodeProgress, totalNodes),
-            }))
+            setProgress((p) => {
+              const next = {
+                ...p,
+                nodeProgress,
+                progressHint: '',
+                workflowProgress: updateOverall(executedRef.current.size, nodeProgress, totalNodes),
+              }
+              progressRef.current = next
+              return next
+            })
+          }
+          if (msg.type === 'progress_state') {
+            const pid = msg.data.prompt_id as string | undefined
+            if (pid && promptIdRef.current && pid !== promptIdRef.current) return
+            const nodes = msg.data.nodes as
+              | Record<string, { value: number; max: number; state: string }>
+              | undefined
+            if (!nodes) return
+
+            for (const [nodeId, nodeState] of Object.entries(nodes)) {
+              if (nodeState.state === 'finished') {
+                executedRef.current.add(nodeId)
+              }
+            }
+
+            const running = Object.entries(nodes).find(([, nodeState]) => nodeState.state === 'running')
+            if (!running) return
+
+            const [nodeId, nodeState] = running
+            lastProgressAtRef.current = Date.now()
+            executedRef.current.add(nodeId)
+            const max = Number(nodeState.max ?? 1)
+            const value = Number(nodeState.value ?? 0)
+            const nodeProgress = max > 0 ? Math.min(100, (value / max) * 100) : 0
+            const nodeDef = snapshotRef.current[nodeId]
+            const title = nodeDef?._meta?.title || nodeDef?.class_type || nodeId
+            const resolvedTotal = totalNodes || Object.keys(snapshotRef.current).length
+            setProgress((p) => {
+              const next = {
+                ...p,
+                currentNodeName: `${nodeId} · ${title}`,
+                executedNodes: executedRef.current.size,
+                totalNodes: resolvedTotal || p.totalNodes,
+                nodeProgress,
+                progressHint: '',
+                workflowProgress: updateOverall(
+                  executedRef.current.size,
+                  nodeProgress,
+                  resolvedTotal || p.totalNodes,
+                ),
+              }
+              progressRef.current = next
+              return next
+            })
+            schedulePoseHint()
           }
           if (msg.type === 'executing') {
             const node = msg.data.node as string | null
@@ -153,18 +206,30 @@ export function useComfyProgress() {
               executedRef.current.add(node)
               const nodeDef = snapshotRef.current[node]
               const title = nodeDef?._meta?.title || nodeDef?.class_type || node
-              setProgress((p) => ({
-                ...p,
-                currentNodeName: `${node} · ${title}`,
-                executedNodes: executedRef.current.size,
-                totalNodes: totalNodes || p.totalNodes,
-                workflowProgress: updateOverall(executedRef.current.size, p.nodeProgress, totalNodes || p.totalNodes),
-                nodeProgress: 0,
-                progressHint: '',
-              }))
+              setProgress((p) => {
+                const next = {
+                  ...p,
+                  currentNodeName: `${node} · ${title}`,
+                  executedNodes: executedRef.current.size,
+                  totalNodes: totalNodes || p.totalNodes,
+                  workflowProgress: updateOverall(
+                    executedRef.current.size,
+                    p.nodeProgress,
+                    totalNodes || p.totalNodes,
+                  ),
+                  nodeProgress: 0,
+                  progressHint: '',
+                }
+                progressRef.current = next
+                return next
+              })
               schedulePoseHint()
             } else if (!promptIdRef.current || pid === promptIdRef.current) {
-              setProgress((p) => ({ ...p, workflowProgress: 100, nodeProgress: 100, progressHint: '' }))
+              setProgress((p) => {
+                const next = { ...p, workflowProgress: 100, nodeProgress: 100, progressHint: '' }
+                progressRef.current = next
+                return next
+              })
             }
           }
         } catch {
@@ -193,10 +258,14 @@ export function useComfyProgress() {
       allowReconnectRef.current = true
       startTimeRef.current = Date.now()
       timerRef.current = window.setInterval(() => {
-        setProgress((p) => ({
-          ...p,
-          elapsedSeconds: Math.floor((Date.now() - startTimeRef.current) / 1000),
-        }))
+        setProgress((p) => {
+          const next = {
+            ...p,
+            elapsedSeconds: Math.floor((Date.now() - startTimeRef.current) / 1000),
+          }
+          progressRef.current = next
+          return next
+        })
       }, 1000)
 
       logDiagnostic('ws_prepare', { clientId })
@@ -237,10 +306,11 @@ export function useComfyProgress() {
       snapshotRef.current = promptSnapshot
       promptIdRef.current = promptId
       clientIdRef.current = clientId
-      setProgress((p) => ({
-        ...p,
-        totalNodes: Object.keys(promptSnapshot).length,
-      }))
+    setProgress((p) => {
+      const next = { ...p, totalNodes: Object.keys(promptSnapshot).length }
+      progressRef.current = next
+      return next
+    })
       if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
         allowReconnectRef.current = true
         openSocket(clientId)
@@ -253,22 +323,23 @@ export function useComfyProgress() {
     promptIdRef.current = promptId
     snapshotRef.current = snapshot
     logDiagnostic('bind_prompt', { promptId, nodeCount: Object.keys(snapshot).length })
-    setProgress((p) => ({
-      ...p,
-      totalNodes: Object.keys(snapshot).length,
-    }))
+    setProgress((p) => {
+      const next = { ...p, totalNodes: Object.keys(snapshot).length }
+      progressRef.current = next
+      return next
+    })
   }, [logDiagnostic])
 
   const takeDiagnosticLog = useCallback((): DiagnosticEntry[] => {
     const copy = [...diagnosticRef.current]
-    const lastProgress = { ...progress }
+    const lastProgress = { ...progressRef.current }
     copy.push({
       ts: new Date().toISOString(),
       event: 'progress_snapshot',
       detail: lastProgress as unknown as Record<string, unknown>,
     })
     return copy
-  }, [progress])
+  }, [])
 
   useEffect(() => () => disconnect(), [disconnect])
 

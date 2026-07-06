@@ -11,6 +11,15 @@ export interface ComfyStatus {
   version?: string
 }
 
+export interface WarmupStatus {
+  ready: boolean
+  warming: boolean
+  skipped: boolean
+  milestone: string | null
+  comfy_pid: number | null
+  warmup_running: boolean
+}
+
 export interface UploadResponse {
   name: string
   subfolder: string

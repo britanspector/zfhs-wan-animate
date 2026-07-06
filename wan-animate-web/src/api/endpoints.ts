@@ -7,6 +7,7 @@ export const endpoints = {
   comfyStart: `${API_BASE}/api/comfy/start`,
   comfyStop: `${API_BASE}/api/comfy/stop`,
   comfyInterrupt: `${API_BASE}/api/comfy/proxy/interrupt`,
+  warmupStatus: `${API_BASE}/api/warmup/status`,
   comfyUpload: `${API_BASE}/api/comfy/upload/file`,
   comfyView: `${API_BASE}/api/comfy/view`,
   workflowConfig: (id: string) => `${API_BASE}/api/workflow/config/${encodeURIComponent(id)}`,

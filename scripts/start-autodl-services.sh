@@ -152,6 +152,10 @@ for i in $(seq 1 60); do
   sleep 2
 done
 
+if $COMFY_OK && $API_OK; then
+  bash "${ROOT}/scripts/run-warmup.sh" || log "WARN: background warmup launch failed"
+fi
+
 PUBLIC_6006="${AutoDLService6006URL:-http://127.0.0.1:${COMFY_PORT}}"
 PUBLIC_6008="${AutoDLService6008URL:-http://127.0.0.1:${GATEWAY_PORT}}"
 

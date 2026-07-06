@@ -83,7 +83,8 @@ function applyResult(
   return true
 }
 
-export function useGenerate(config: WorkflowConfig) {
+export function useGenerate(config: WorkflowConfig, options?: { warmupReady?: boolean }) {
+  const warmupReady = options?.warmupReady ?? true
   const initialSamples = sampleNamesFromConfig(config)
   const [previewState, setPreviewState] = useState<PreviewState>('idle')
   const [message, setMessage] = useState('')
@@ -248,15 +249,20 @@ export function useGenerate(config: WorkflowConfig) {
     [config],
   )
 
-  const flushDiagnosticLog = useCallback(async (pid: string | null) => {
-    if (!pid) return
-    try {
-      const entries = takeDiagnosticLog()
-      await api.postDiagnosticLog(pid, entries)
-    } catch {
-      // diagnostic logging must not break UX
-    }
-  }, [takeDiagnosticLog])
+  const flushDiagnosticLog = useCallback(
+    async (pid: string | null, afterFlush?: () => void) => {
+      if (pid) {
+        try {
+          const entries = takeDiagnosticLog()
+          await api.postDiagnosticLog(pid, entries)
+        } catch {
+          // diagnostic logging must not break UX
+        }
+      }
+      afterFlush?.()
+    },
+    [takeDiagnosticLog],
+  )
 
   const stopGeneration = useCallback(async () => {
     abortRef.current = true
@@ -265,8 +271,7 @@ export function useGenerate(config: WorkflowConfig) {
     } catch {
       // ignore
     }
-    await flushDiagnosticLog(promptId)
-    disconnect()
+    await flushDiagnosticLog(promptId, disconnect)
     setPreviewState('idle')
     setMessage('已停止生成')
   }, [disconnect, flushDiagnosticLog, promptId])
@@ -298,8 +303,7 @@ export function useGenerate(config: WorkflowConfig) {
         try {
           const res = await api.getResult(pid)
           if (applyResult(res, startMs, setPreviewState, setMessage, setVideoUrl, setFinalElapsed)) {
-            await flushDiagnosticLog(pid)
-            disconnect()
+            await flushDiagnosticLog(pid, disconnect)
             return
           }
         } catch {
@@ -310,13 +314,17 @@ export function useGenerate(config: WorkflowConfig) {
           `❌ 轮询超时（已等待 ${Math.floor((Date.now() - startMs) / 60000)} 分钟）。任务可能仍在后台运行，请点击「历史记录」查看。`,
         )
       }
-      await flushDiagnosticLog(pid)
-      disconnect()
+      await flushDiagnosticLog(pid, disconnect)
     },
     [disconnect, flushDiagnosticLog],
   )
 
   const generate = useCallback(async () => {
+    if (!warmupReady) {
+      setPreviewState('idle')
+      setMessage('模型预热中，请稍候……')
+      return
+    }
     abortRef.current = false
     reset()
     setMessage('')
@@ -378,8 +386,7 @@ export function useGenerate(config: WorkflowConfig) {
     } catch (err) {
       setPreviewState('error')
       setMessage(`❌ ${err instanceof Error ? err.message : String(err)}`)
-      await flushDiagnosticLog(activePromptId)
-      disconnect()
+      await flushDiagnosticLog(activePromptId, disconnect)
     }
   }, [
     bindPrompt,
@@ -400,6 +407,7 @@ export function useGenerate(config: WorkflowConfig) {
     height,
     workflowVariant,
     tunables,
+    warmupReady,
   ])
 
   const loadLatestFromHistory = useCallback(async () => {
