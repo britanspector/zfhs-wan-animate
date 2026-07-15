@@ -4,6 +4,8 @@ import type {
   GpuInfo,
   HistoryResponse,
   UploadResponse,
+  WarmupStatus,
+  WorkflowProgressResponse,
   WorkflowResult,
 } from '../types/api'
 import { WORKFLOW_ID } from '../types/workflow'
@@ -22,6 +24,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   getGpuInfo: () => request<GpuInfo>(endpoints.gpuInfo),
   getComfyStatus: () => request<ComfyStatus>(endpoints.comfyStatus),
+  getWarmupStatus: () => request<WarmupStatus>(endpoints.warmupStatus),
   startComfy: () => request<ComfyStatus & { success?: boolean }>(endpoints.comfyStart, { method: 'POST' }),
   stopComfy: () => request<{ success: boolean }>(endpoints.comfyStop, { method: 'POST' }),
   interrupt: () => request<{ success: boolean }>(endpoints.comfyInterrupt, { method: 'POST' }),
@@ -57,6 +60,10 @@ export const api = {
     }),
   getResult: (promptId: string) =>
     request<WorkflowResult>(`${endpoints.workflowResult}?prompt_id=${encodeURIComponent(promptId)}`),
+  getWorkflowProgress: (promptId: string) =>
+    request<WorkflowProgressResponse>(
+      `${endpoints.workflowProgress}?prompt_id=${encodeURIComponent(promptId)}`,
+    ),
   getHistory: (limit = 20) =>
     request<HistoryResponse>(`${endpoints.workflowHistory}?limit=${limit}`),
 }

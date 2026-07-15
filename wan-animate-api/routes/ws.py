@@ -67,10 +67,12 @@ async def comfy_ws_proxy(websocket: WebSocket, clientId: str = Query(...)) -> No
                     logger.info("ws proxy client disconnected clientId=%s", clientId)
 
             async def comfy_to_client() -> None:
+                diag = websocket.app.state.progress_diagnostic
                 async for message in comfy_ws:
                     if isinstance(message, bytes):
                         await websocket.send_bytes(message)
                     else:
+                        diag.log_backend_event(clientId, message)
                         await websocket.send_text(message)
 
             done, pending = await asyncio.wait(

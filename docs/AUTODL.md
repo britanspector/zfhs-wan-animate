@@ -66,6 +66,15 @@ curl http://127.0.0.1:6008/api/external-url-6006
 curl http://127.0.0.1:6008/api/external-url-6008
 ```
 
+## 后台预热
+
+服务栈 HTTP 就绪后，`scripts/run-warmup.sh` 会在后台提交一次 10 秒短任务，加载文本编码器、姿态检测 ONNX 与 Wan 采样模型，到达关键节点后自动 `interrupt`，**不阻塞**公网入口可用。
+
+- 日志：`.run/warmup.log`
+- 状态：`wan-animate-api/data/.warmup_state.json`（与 ComfyUI PID 绑定，同进程不重复预热）
+- 禁用：`SKIP_WARMUP=1`
+- 手动：`bash scripts/run-warmup.sh` 或 `python scripts/warmup_comfy.py --dry-run`
+
 ## 停止服务
 
 ```bash
@@ -82,8 +91,22 @@ bash scripts/start-wan-animate.sh --stop
 | `.run/api.log` | Web API |
 | `.run/jupyter.log` | Jupyter |
 | `.run/nginx-error.log` | nginx 网关 |
+| `.run/warmup.log` | 后台模型预热（实例启动后自动） |
 | `/tmp/zfhs-wan-animate-autostart.log` | 开机自启 |
 | `/tmp/zfhs-wan-animate-daemon.log` | 守护进程 |
+
+## iframe 嵌入
+
+Web 一键生成页可通过 iframe 嵌入业务系统，但跨源 / 混合内容环境容易导致浏览器节流 `setTimeout`、WebSocket 握手挂起。
+
+| 要求 | 说明 |
+|------|------|
+| 父页 HTTPS | 父页使用 **HTTPS**；避免 `http://` 父页嵌入 `https://` 公网 6008 子页 |
+| 尽量同站 | 父页与 `{AutoDLService6008URL}` 同站或同级域名更稳；跨站亦可，但依赖进度降级逻辑 |
+| sandbox | 勿使用会禁用脚本或限制网络的 `sandbox`；需要 WS 时不要 `allow-same-origin` 缺失导致隔离异常 |
+| allow | 可保留 `fullscreen` / clipboard 等按需权限，勿过度收紧到阻断页面功能 |
+
+前端已支持：WS 打开失败时仍提交任务；多次重连；断线后轮询 `GET /api/workflow/progress` 补进度。直连公网地址或同站 HTTPS 父页仍然最稳。本地可用仓库根目录 `iframe-test.html` + `python3 -m http.server 8765` 做对照测试。
 
 ## 排错
 
@@ -93,8 +116,10 @@ bash scripts/start-wan-animate.sh --stop
 | Jupyter 403 / 无法打开 | 公网 URL 必须带 `?token=`，见 `curl http://127.0.0.1:6008/api/services` |
 | Jupyter 404 | 确认 `jupyter` 在 8888 且 `base_url=/jupyter/`；设 `JUPYTER_FORCE_RESTART=1` 重启 |
 | ComfyUI 启动慢 | 首次加载模型需 1–2 分钟，守护进程会自动重试 |
+| 首跑生成偏慢 | 实例启动后会在后台自动预热（约 3–4 分钟），日志见 `.run/warmup.log`；设 `SKIP_WARMUP=1` 可禁用 |
 | nginx 未安装 | `start-nginx-gateway.sh` 会尝试 `apt-get install nginx` |
 | 公网 URL 为空 | 在 AutoDL 控制台「自定义服务」复制地址；或 `source /etc/profile.d/autodl.env.sh` |
+| iframe 内进度卡在 0:00 | 确认父页 HTTPS；查看 Network 是否有 `POST /api/workflow/generate`；无请求则清缓存后硬刷新前端构建产物 |
 
 ## 验证清单
 

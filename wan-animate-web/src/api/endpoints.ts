@@ -7,6 +7,7 @@ export const endpoints = {
   comfyStart: `${API_BASE}/api/comfy/start`,
   comfyStop: `${API_BASE}/api/comfy/stop`,
   comfyInterrupt: `${API_BASE}/api/comfy/proxy/interrupt`,
+  warmupStatus: `${API_BASE}/api/warmup/status`,
   comfyUpload: `${API_BASE}/api/comfy/upload/file`,
   comfyView: `${API_BASE}/api/comfy/view`,
   workflowConfig: (id: string) => `${API_BASE}/api/workflow/config/${encodeURIComponent(id)}`,
@@ -14,6 +15,7 @@ export const endpoints = {
   workflowValidateInput: `${API_BASE}/api/workflow/validate-input`,
   workflowDiagnosticLog: `${API_BASE}/api/workflow/diagnostic-log`,
   workflowResult: `${API_BASE}/api/workflow/result`,
+  workflowProgress: `${API_BASE}/api/workflow/progress`,
   workflowHistory: `${API_BASE}/api/workflow/history`,
   wsProxy: (clientId: string) => {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'

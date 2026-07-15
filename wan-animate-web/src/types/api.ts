@@ -11,6 +11,15 @@ export interface ComfyStatus {
   version?: string
 }
 
+export interface WarmupStatus {
+  ready: boolean
+  warming: boolean
+  skipped: boolean
+  milestone: string | null
+  comfy_pid: number | null
+  warmup_running: boolean
+}
+
 export interface UploadResponse {
   name: string
   subfolder: string
@@ -68,4 +77,16 @@ export interface JobRecord {
 export interface HistoryResponse {
   success: boolean
   jobs: JobRecord[]
+}
+
+export interface WorkflowProgressResponse {
+  success: boolean
+  found: boolean
+  prompt_id: string
+  workflow_progress: number
+  node_progress: number
+  current_node_name: string
+  executed_nodes: number
+  total_nodes: number
+  status: string
 }

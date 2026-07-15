@@ -78,6 +78,11 @@ def workflow_result(request: Request, prompt_id: str = Query(...)) -> dict[str, 
     return request.app.state.workflow_service.result(prompt_id, request=request)
 
 
+@router.get("/api/workflow/progress")
+def workflow_progress(request: Request, prompt_id: str = Query(...)) -> dict[str, Any]:
+    return request.app.state.workflow_service.progress(prompt_id)
+
+
 @router.get("/api/workflow/history")
 def workflow_history(request: Request, limit: int = Query(default=50, ge=1, le=200)) -> dict[str, Any]:
     jobs = request.app.state.workflow_service.history(limit=limit, request=request)

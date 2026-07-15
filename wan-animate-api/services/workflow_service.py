@@ -276,6 +276,9 @@ class WorkflowService:
     def append_diagnostic_frontend(self, prompt_id: str, entries: list[dict[str, Any]]) -> None:
         self.progress_diagnostic.append_frontend(prompt_id, entries)
 
+    def progress(self, prompt_id: str) -> dict[str, Any]:
+        return self.progress_diagnostic.get_progress(prompt_id)
+
     def result(self, prompt_id: str, request: Any | None = None) -> dict[str, Any]:
         job = self.job_store.get(prompt_id)
         ref_video = None

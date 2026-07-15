@@ -9,6 +9,7 @@ import { Button } from '../components/common/Button'
 import { useWorkflowConfig } from '../hooks/useWorkflowConfig'
 import { useGpuInfo } from '../hooks/useGpuInfo'
 import { useComfyStatus } from '../hooks/useComfyStatus'
+import { useWarmupStatus } from '../hooks/useWarmupStatus'
 import { useGenerate } from '../hooks/useGenerate'
 import { defaultTunablesForVariant } from '../types/workflow'
 
@@ -16,7 +17,8 @@ export function AnimatePage() {
   const { config, loading } = useWorkflowConfig()
   const gpu = useGpuInfo()
   const { isRunning, starting, startComfy } = useComfyStatus()
-  const gen = useGenerate(config)
+  const { warmupReady } = useWarmupStatus(isRunning)
+  const gen = useGenerate(config, { warmupReady })
 
   if (loading) {
     return <div className="p-8 text-center text-morandi-muted">加载配置...</div>
@@ -40,6 +42,9 @@ export function AnimatePage() {
       void startComfy()
     }
     ctaDisabled = starting
+  } else if (!warmupReady) {
+    ctaLabel = '预热中……'
+    ctaDisabled = true
   } else if (isGenerating) {
     ctaLabel = '角色融合与动画合成中...'
     ctaDisabled = true

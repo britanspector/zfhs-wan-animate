@@ -83,6 +83,11 @@ else
   echo "[entrypoint] ComfyUI ready"
 fi
 
+if [[ -n "${COMFY_PID:-}" ]]; then
+  mkdir -p "${APP_DIR}/.run"
+  echo "${COMFY_PID}" > "${APP_DIR}/.run/comfyui.pid"
+fi
+
 echo "[entrypoint] starting wan-animate-api on ${API_HOST}:${API_PORT}..."
 cd "${APP_DIR}"
 "${PYTHON_BIN}" -m uvicorn app:app \
@@ -90,4 +95,13 @@ cd "${APP_DIR}"
   --host "${API_HOST}" \
   --port "${API_PORT}" &
 API_PID=$!
+
+for i in $(seq 1 30); do
+  if curl -sf "http://127.0.0.1:${API_PORT}/api/health" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+bash "${APP_DIR}/scripts/run-warmup.sh" || echo "[entrypoint] WARN: background warmup launch failed"
+
 wait "${API_PID}"

@@ -15,7 +15,16 @@ const SAFE_HEIGHT = 832
 export type MediaSource = 'sample' | 'restored' | 'upload'
 
 function randomClientId() {
-  return crypto.randomUUID().replace(/-/g, '')
+  // iframe / 部分 WebView 可能没有 crypto.randomUUID（非安全上下文或实现不全）
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().replace(/-/g, '')
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const buf = new Uint8Array(16)
+    crypto.getRandomValues(buf)
+    return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('')
+  }
+  return `c${Date.now().toString(16)}${Math.random().toString(16).slice(2, 14)}`
 }
 
 function normalizeDimension(value: number, fallback: number) {
@@ -83,7 +92,8 @@ function applyResult(
   return true
 }
 
-export function useGenerate(config: WorkflowConfig) {
+export function useGenerate(config: WorkflowConfig, options?: { warmupReady?: boolean }) {
+  const warmupReady = options?.warmupReady ?? true
   const initialSamples = sampleNamesFromConfig(config)
   const [previewState, setPreviewState] = useState<PreviewState>('idle')
   const [message, setMessage] = useState('')
@@ -100,6 +110,7 @@ export function useGenerate(config: WorkflowConfig) {
     reset,
     bindPrompt,
     takeDiagnosticLog,
+    startElapsed,
   } = useComfyProgress()
 
   const [width, setWidth] = useState(config.defaults.width)
@@ -248,15 +259,20 @@ export function useGenerate(config: WorkflowConfig) {
     [config],
   )
 
-  const flushDiagnosticLog = useCallback(async (pid: string | null) => {
-    if (!pid) return
-    try {
-      const entries = takeDiagnosticLog()
-      await api.postDiagnosticLog(pid, entries)
-    } catch {
-      // diagnostic logging must not break UX
-    }
-  }, [takeDiagnosticLog])
+  const flushDiagnosticLog = useCallback(
+    async (pid: string | null, afterFlush?: () => void) => {
+      if (pid) {
+        try {
+          const entries = takeDiagnosticLog()
+          await api.postDiagnosticLog(pid, entries)
+        } catch {
+          // diagnostic logging must not break UX
+        }
+      }
+      afterFlush?.()
+    },
+    [takeDiagnosticLog],
+  )
 
   const stopGeneration = useCallback(async () => {
     abortRef.current = true
@@ -265,8 +281,7 @@ export function useGenerate(config: WorkflowConfig) {
     } catch {
       // ignore
     }
-    await flushDiagnosticLog(promptId)
-    disconnect()
+    await flushDiagnosticLog(promptId, disconnect)
     setPreviewState('idle')
     setMessage('已停止生成')
   }, [disconnect, flushDiagnosticLog, promptId])
@@ -298,8 +313,7 @@ export function useGenerate(config: WorkflowConfig) {
         try {
           const res = await api.getResult(pid)
           if (applyResult(res, startMs, setPreviewState, setMessage, setVideoUrl, setFinalElapsed)) {
-            await flushDiagnosticLog(pid)
-            disconnect()
+            await flushDiagnosticLog(pid, disconnect)
             return
           }
         } catch {
@@ -310,18 +324,23 @@ export function useGenerate(config: WorkflowConfig) {
           `❌ 轮询超时（已等待 ${Math.floor((Date.now() - startMs) / 60000)} 分钟）。任务可能仍在后台运行，请点击「历史记录」查看。`,
         )
       }
-      await flushDiagnosticLog(pid)
-      disconnect()
+      await flushDiagnosticLog(pid, disconnect)
     },
     [disconnect, flushDiagnosticLog],
   )
 
   const generate = useCallback(async () => {
+    if (!warmupReady) {
+      setPreviewState('idle')
+      setMessage('模型预热中，请稍候……')
+      return
+    }
     abortRef.current = false
     reset()
     setMessage('')
     setVideoUrl(null)
     setPreviewState('generating')
+    startElapsed()
     const startMs = Date.now()
     const clientId = randomClientId()
     let activePromptId: string | null = null
@@ -356,7 +375,7 @@ export function useGenerate(config: WorkflowConfig) {
         setMessage('检测节点当前仅稳定支持 468 x 832，已自动恢复为默认尺寸后提交。')
       }
 
-      await prepareConnection(clientId)
+      const { wsReady } = await prepareConnection(clientId)
 
       const gen = await api.generate({
         client_id: clientId,
@@ -373,13 +392,13 @@ export function useGenerate(config: WorkflowConfig) {
       activePromptId = gen.prompt_id
       setPromptId(gen.prompt_id)
       bindPrompt(gen.prompt_id, gen.prompt_snapshot)
-      setMessage(`任务已提交：${gen.prompt_id}（图像 ${img} · 视频 ${vid}）`)
+      const channelHint = wsReady ? '' : '（进度通道降级为 HTTP 轮询）'
+      setMessage(`任务已提交：${gen.prompt_id}（图像 ${img} · 视频 ${vid}）${channelHint}`)
       await pollResult(gen.prompt_id, startMs, seconds)
     } catch (err) {
       setPreviewState('error')
       setMessage(`❌ ${err instanceof Error ? err.message : String(err)}`)
-      await flushDiagnosticLog(activePromptId)
-      disconnect()
+      await flushDiagnosticLog(activePromptId, disconnect)
     }
   }, [
     bindPrompt,
@@ -394,12 +413,14 @@ export function useGenerate(config: WorkflowConfig) {
     prepareConnection,
     reset,
     seconds,
+    startElapsed,
     videoFile,
     videoName,
     width,
     height,
     workflowVariant,
     tunables,
+    warmupReady,
   ])
 
   const loadLatestFromHistory = useCallback(async () => {

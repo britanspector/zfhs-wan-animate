@@ -57,12 +57,17 @@ def test_validate_input_missing(tmp_path: Path):
 
 
 def test_progress_diagnostic_writes_files(tmp_path: Path):
-    diag = ProgressDiagnosticService(tmp_path, "http://127.0.0.1:6006")
+    store = JobStore(tmp_path / "jobs.json")
+    diag = ProgressDiagnosticService(tmp_path, "http://127.0.0.1:6006", store)
     diag.start(
         prompt_id="pid-1",
         client_id="cid-1",
         prompt_snapshot={"1": {"class_type": "Test"}},
         meta={"image": "C罗.jpg"},
+    )
+    diag.log_backend_event(
+        "cid-1",
+        '{"type": "executing", "data": {"node": "1", "prompt_id": "pid-1"}}',
     )
     diag.append_frontend("pid-1", [{"event": "ws_open", "detail": {}}])
     diag.finish("pid-1", status="completed")
@@ -72,3 +77,29 @@ def test_progress_diagnostic_writes_files(tmp_path: Path):
     run_dir = run_dirs[0]
     assert (run_dir / "meta.json").is_file()
     assert (run_dir / "frontend.jsonl").is_file()
+    assert (run_dir / "backend.jsonl").is_file()
+    backend_lines = (run_dir / "backend.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    assert len(backend_lines) == 1
+    assert '"type": "executing"' in backend_lines[0]
+
+
+def test_progress_diagnostic_get_progress(tmp_path: Path):
+    diag = ProgressDiagnosticService(tmp_path, "http://127.0.0.1:6006")
+    missing = diag.get_progress("missing")
+    assert missing["found"] is False
+    assert missing["prompt_id"] == "missing"
+
+    diag.start(
+        prompt_id="pid-2",
+        client_id="cid-2",
+        prompt_snapshot={"1": {"class_type": "Test"}, "2": {"class_type": "Test2"}},
+    )
+    snap = diag.get_progress("pid-2")
+    assert snap["found"] is True
+    assert snap["total_nodes"] == 2
+    assert snap["workflow_progress"] == 0.0
+    assert "pid-2" in diag._trackers
+    diag.finish("pid-2", status="completed")
+    done = diag.get_progress("pid-2")
+    assert done["status"] == "completed"
+    assert "pid-2" not in diag._trackers
