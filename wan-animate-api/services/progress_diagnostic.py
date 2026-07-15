@@ -93,6 +93,7 @@ class ProgressDiagnosticService:
         prompt_snapshot: dict[str, Any],
         meta: dict[str, Any] | None = None,
     ) -> None:
+        del prompt_snapshot  # kept for API compatibility
         run_dir = self._run_dir(prompt_id)
         run_dir.mkdir(parents=True, exist_ok=True)
         meta_path = run_dir / "meta.json"
